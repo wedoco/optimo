@@ -1,0 +1,21 @@
+{
+    "name":"optimo",
+    "image":"optimo",
+    "customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Bug fix on Mac: https://github.com/microsoft/vscode-remote-release/issues/8169
+			"settings": {
+				"extensions.verifySignature": false
+			},
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-python.python",
+				"ms-python.isort",
+				"ms-python.vscode-pylance",
+				"github.copilot",
+				"eamodio.gitlens"
+			]
+		}
+	}
+}
