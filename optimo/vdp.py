@@ -1,7 +1,7 @@
 from OMPython import OMCSessionZMQ
 import zipfile
 from pathlib import Path
-import casadi as cs
+import casadi as ca
 import rockit
 import pandas as pd
 import os
@@ -135,7 +135,7 @@ if force_recompile:
 fmu_path = str(Path(f'{model}.fmu').resolve())
 
 # Parse FMU to dae_builder object
-dae_builder = cs.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
+dae_builder = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
 explore_dae_builder(dae_builder)
 
@@ -161,11 +161,11 @@ print("Nominal: ", nom)
 f = dae_builder.create('f', ['x', 'u'], ['ode', 'ydef'])
 
 # Redefine the API of f
-x = cs.vcat([dae_builder.var(name) for name in dae_builder.x()])
-u = cs.vcat([dae_builder.var(name) for name in dae_builder.u()])
-optimize = cs.vcat([dae_builder.var(name) for name in u_opt])
+x = ca.vcat([dae_builder.var(name) for name in dae_builder.x()])
+u = ca.vcat([dae_builder.var(name) for name in dae_builder.u()])
+optimize = ca.vcat([dae_builder.var(name) for name in u_opt])
 
-f = cs.Function('f', [x, optimize], f(x, u), ['x', 'optimize'], ['ode', 'ydef'])
+f = ca.Function('f', [x, optimize], f(x, u), ['x', 'optimize'], ['ode', 'ydef'])
 
 # Define rockit ocp problem
 ocp = rockit.Ocp(T=T_horizon)
@@ -207,7 +207,7 @@ out = f(x=ocp.x, optimize=ocp.v)  # here p=ocp.v because we registered the input
 ocp.set_der(ocp.x, out["ode"])  # out['ode'] gives the derivative of the states.
 
 # Store all symbolic expressions for outputs into vars
-for y_label, e in zip(dae_builder.y(), cs.vertsplit(out["ydef"])):
+for y_label, e in zip(dae_builder.y(), ca.vertsplit(out["ydef"])):
     print(y_label)
     print(e)
     vars[y_label] = e
