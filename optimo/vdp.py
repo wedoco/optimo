@@ -91,31 +91,31 @@ def unpack_fmu(fmu_file):
 def cleanup_fmu(unpacked_fmu):
   shutil.rmtree(unpacked_fmu)
 
-def explore_dae_builder(dae_builder):
-    print(f"\nParameters and initial guesses ({dae_builder.np()}):")
+def explore_dae_builder(dae):
+    print(f"\nParameters and initial guesses ({dae.np()}):")
 
-    for p_name in dae_builder.p():
-        print(f" * {p_name}: initial guess {dae_builder.get(p_name)}, nominal {dae_builder.nominal(p_name)}")
+    for p_name in dae.p():
+        print(f" * {p_name}: initial guess {dae.get(p_name)}, nominal {dae.nominal(p_name)}")
 
-    print(f"\nStates and initial values ({dae_builder.nx()}):")
+    print(f"\nStates and initial values ({dae.nx()}):")
 
-    for x_name in dae_builder.x():
-        print(f' * {x_name}: initial value {dae_builder.get(x_name)}, nominal {dae_builder.nominal(x_name)}')
+    for x_name in dae.x():
+        print(f' * {x_name}: initial value {dae.get(x_name)}, nominal {dae.nominal(x_name)}')
 
-    print(f"\nControls and initial values ({dae_builder.nu()}):")
+    print(f"\nControls and initial values ({dae.nu()}):")
 
-    for u_name in dae_builder.u():
-        print(f' * {u_name}: initial values {dae_builder.get(u_name)}, nominal {dae_builder.nominal(u_name)}')
+    for u_name in dae.u():
+        print(f' * {u_name}: initial values {dae.get(u_name)}, nominal {dae.nominal(u_name)}')
 
-    print(f"\nOutputs and initial values ({dae_builder.ny()}):")
+    print(f"\nOutputs and initial values ({dae.ny()}):")
 
-    for y_name in dae_builder.y():
-        print(f' * {y_name}: initial values {dae_builder.get(y_name)}, nominal {dae_builder.nominal(y_name)}')
+    for y_name in dae.y():
+        print(f' * {y_name}: initial values {dae.get(y_name)}, nominal {dae.nominal(y_name)}')
 
 
 ####
 # Start of the transfer_model method. 
-# Returns an optimo.opt object with attributes like the dae_builder. 
+# Returns an optimo.opt object with attributes like the dae. 
 # Arguments:
 fmu_version = 2.0
 model='vdp'
@@ -134,36 +134,36 @@ if force_recompile:
     build_model_fmu(omc, f'{model}')
 fmu_path = str(Path(f'{model}.fmu').resolve())
 
-# Parse FMU to dae_builder object
-dae_builder = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
+# Parse FMU to dae object
+dae = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
-explore_dae_builder(dae_builder)
+explore_dae_builder(dae)
 
 # Check that all u_opt exist in the model
-assert all(u_name in dae_builder.u() for u_name in u_opt)
+assert all(u_name in dae.u() for u_name in u_opt)
 
 # Extracting initial values for the model
-p0 = dae_builder.get(dae_builder.p())
-x0 = dae_builder.get(dae_builder.x())
-u0 = dae_builder.get(dae_builder.u())
-u_opt_0 = dae_builder.get(u_opt)
+p0 = dae.get(dae.p())
+x0 = dae.get(dae.x())
+u0 = dae.get(dae.u())
+u_opt_0 = dae.get(u_opt)
 
 # For debugging: inspect system
-dae_builder.disp(True)
+dae.disp(True)
 
 # Define 
-f = dae_builder.create('f', ['x', 'u'], ['ode'])
+f = dae.create('f', ['x', 'u'], ['ode'])
 
 nom = f(x=x0, u=u0)
 print("Nominal: ", nom)
 
 # Adding an extra output: outputs defined in the FMU
-f = dae_builder.create('f', ['x', 'u'], ['ode', 'ydef'])
+f = dae.create('f', ['x', 'u'], ['ode', 'ydef'])
 
 # Redefine the API of f
-x = ca.vcat([dae_builder.var(name) for name in dae_builder.x()])
-u = ca.vcat([dae_builder.var(name) for name in dae_builder.u()])
-optimize = ca.vcat([dae_builder.var(name) for name in u_opt])
+x = ca.vcat([dae.var(name) for name in dae.x()])
+u = ca.vcat([dae.var(name) for name in dae.u()])
+optimize = ca.vcat([dae.var(name) for name in u_opt])
 
 f = ca.Function('f', [x, optimize], f(x, u), ['x', 'optimize'], ['ode', 'ydef'])
 
@@ -183,20 +183,20 @@ ocp.solver("ipopt", {"ipopt.hessian_approximation": "limited-memory"})
 vars = {}
 
 # Loop over all states
-for x_label in dae_builder.x():
-    # Pull symbol out of dae_builder
-    vars[x_label] = dae_builder.var(x_label)
+for x_label in dae.x():
+    # Pull symbol out of dae
+    vars[x_label] = dae.var(x_label)
 
     # Let rockit know that this symbol is a state
-    ocp.register_state(dae_builder.var(x_label), scale=dae_builder.nominal(x_label))
+    ocp.register_state(dae.var(x_label), scale=dae.nominal(x_label))
 
 # Loop over all inputs to optimize
 for u_label in u_opt:
-    # Pull symbol out of dae_builder
-    vars[u_label] = dae_builder.var(u_label)
+    # Pull symbol out of dae
+    vars[u_label] = dae.var(u_label)
 
     # Let rockit know that this symbol is a control
-    ocp.register_variable(dae_builder.var(u_label), scale=dae_builder.nominal(u_label))
+    ocp.register_variable(dae.var(u_label), scale=dae.nominal(u_label))
 
 # Perform a symbolic call to the system dynamics and output Function
 #  - ocp.x: flattened vector of all states
@@ -207,7 +207,7 @@ out = f(x=ocp.x, optimize=ocp.v)  # here p=ocp.v because we registered the input
 ocp.set_der(ocp.x, out["ode"])  # out['ode'] gives the derivative of the states.
 
 # Store all symbolic expressions for outputs into vars
-for y_label, e in zip(dae_builder.y(), ca.vertsplit(out["ydef"])):
+for y_label, e in zip(dae.y(), ca.vertsplit(out["ydef"])):
     print(y_label)
     print(e)
     vars[y_label] = e
@@ -221,7 +221,7 @@ ocp.subject_to(-1 <= (vars['u'] <= 0.75))
 # Set initial guesses for unknowns
 for i, u_name in enumerate(u_opt):
     ocp.set_initial(vars[u_name], u_opt_0[i])
-for i, x_name in enumerate(dae_builder.x()):
+for i, x_name in enumerate(dae.x()):
     ocp.set_initial(vars[x_name], x0[i])
 
 # Solve ocp
