@@ -91,7 +91,7 @@ def unpack_fmu(fmu_file):
 def cleanup_fmu(unpacked_fmu):
   shutil.rmtree(unpacked_fmu)
 
-def explore_dae_builder(dae):
+def explore_dae(dae):
     print(f"\nParameters and initial guesses ({dae.np()}):")
 
     for p_name in dae.p():
@@ -137,7 +137,7 @@ fmu_path = str(Path(f'{model}.fmu').resolve())
 # Parse FMU to dae object
 dae = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
-explore_dae_builder(dae)
+explore_dae(dae)
 
 # Check that all u_opt exist in the model
 assert all(u_name in dae.u() for u_name in u_opt)
