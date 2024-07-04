@@ -119,9 +119,8 @@ def explore_dae(dae):
 # Arguments:
 fmu_version = 2.0
 model='vdp'
-force_recompile=True
+force_recompile=False
 omc = OMCSessionZMQ()
-u_opt = ['u']
 
 T_horizon = 20
 N = 100  # integration horizon
@@ -139,33 +138,16 @@ dae = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
 explore_dae(dae)
 
-# Check that all u_opt exist in the model
-assert all(u_name in dae.u() for u_name in u_opt)
-
 # Extracting initial values for the model
 p0 = dae.get(dae.p())
 x0 = dae.get(dae.x())
 u0 = dae.get(dae.u())
-u_opt_0 = dae.get(u_opt)
-
-# For debugging: inspect system
-dae.disp(True)
-
-# Define 
-f = dae.create('f', ['x', 'u'], ['ode'])
-
-nom = f(x=x0, u=u0)
-print("Nominal: ", nom)
-
-# Adding an extra output: outputs defined in the FMU
-f = dae.create('f', ['x', 'u'], ['ode', 'ydef'])
 
 # Redefine the API of f
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
-optimize = ca.vcat([dae.var(name) for name in u_opt])
 
-f = ca.Function('f', [x, optimize], f(x, u), ['x', 'optimize'], ['ode', 'ydef'])
+f = dae.create("f", ["x", "u"], ['ode', 'ydef'])
 
 # Define rockit ocp problem
 ocp = rockit.Ocp(T=T_horizon)
@@ -183,34 +165,30 @@ ocp.solver("ipopt", {"ipopt.hessian_approximation": "limited-memory"})
 vars = {}
 
 # Loop over all states
-for x_label in dae.x():
+for x_name in dae.x():
     # Pull symbol out of dae
-    vars[x_label] = dae.var(x_label)
+    vars[x_name] = dae.var(x_name)
 
     # Let rockit know that this symbol is a state
-    ocp.register_state(dae.var(x_label), scale=dae.nominal(x_label))
+    ocp.register_state(dae.var(x_name), scale=dae.nominal(x_name))
 
 # Loop over all inputs to optimize
-for u_label in u_opt:
+for u_name in dae.u():
     # Pull symbol out of dae
-    vars[u_label] = dae.var(u_label)
+    vars[u_name] = dae.var(u_name)
 
     # Let rockit know that this symbol is a control
-    ocp.register_variable(dae.var(u_label), scale=dae.nominal(u_label))
+    ocp.register_variable(dae.var(u_name), scale=dae.nominal(u_name))
 
 # Perform a symbolic call to the system dynamics and output Function
-#  - ocp.x: flattened vector of all states
-#  - ocp.u: flattened vector of all controls
-out = f(x=ocp.x, optimize=ocp.v)  # here p=ocp.v because we registered the inputs as variables
+out = f(x=ocp.x, u=ocp.v)  
 
 # Let rockit know what the state dynamics are
 ocp.set_der(ocp.x, out["ode"])  # out['ode'] gives the derivative of the states.
 
 # Store all symbolic expressions for outputs into vars
-for y_label, e in zip(dae.y(), ca.vertsplit(out["ydef"])):
-    print(y_label)
-    print(e)
-    vars[y_label] = e
+for y_name, e in zip(dae.y(), ca.vertsplit(out["ydef"])):
+    vars[y_name] = e
 
 # Formulate objective
 ocp.add_objective(ocp.integral(vars['objectiveIntegrand']))
@@ -219,8 +197,8 @@ ocp.add_objective(ocp.integral(vars['objectiveIntegrand']))
 ocp.subject_to(-1 <= (vars['u'] <= 0.75))
 
 # Set initial guesses for unknowns
-for i, u_name in enumerate(u_opt):
-    ocp.set_initial(vars[u_name], u_opt_0[i])
+for i, u_name in enumerate(dae.u()):
+    ocp.set_initial(vars[u_name], u0[i])
 for i, x_name in enumerate(dae.x()):
     ocp.set_initial(vars[x_name], x0[i])
 
