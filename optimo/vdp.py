@@ -147,7 +147,6 @@ u0 = dae.get(dae.u())
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
 
-f = dae.create("f", ["x", "u"], ['ode', 'ydef'])
 
 # Define rockit ocp problem
 ocp = rockit.Ocp(T=T_horizon)
@@ -161,51 +160,52 @@ ocp.method(rockit.MultipleShooting(N=N, M=M))
 # After scaling manually, it as good idea to turn off ipopt scaling: "ipopt.nlp_scaling_method": none
 ocp.solver("ipopt", {"ipopt.hessian_approximation": "limited-memory"})
 
-# Collection of CasADi symbols and symbolic expressions that capture variables of the model
-vars = {}
-
 # Loop over all states
 for x_name in dae.x():
-    # Pull symbol out of dae
-    vars[x_name] = dae.var(x_name)
-
     # Let rockit know that this symbol is a state
     ocp.register_state(dae.var(x_name), scale=dae.nominal(x_name))
 
 # Loop over all inputs to optimize
 for u_name in dae.u():
-    # Pull symbol out of dae
-    vars[u_name] = dae.var(u_name)
-
     # Let rockit know that this symbol is a control
-    ocp.register_variable(dae.var(u_name), scale=dae.nominal(u_name))
+    ocp.register_control(dae.var(u_name), scale=dae.nominal(u_name))
+
+# Loop over all outputs
+for y_name in dae.y():
+    # Let rockit know that this symbol is a control
+    ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
 # Perform a symbolic call to the system dynamics and output Function
-out = f(x=ocp.x, u=ocp.v)  
+f = dae.create("f", ["x", "u"], ['ode', 'ydef'])
+out = f(x=ocp.x, u=ocp.u)  
 
 # Let rockit know what the state dynamics are
 ocp.set_der(ocp.x, out["ode"])  # out['ode'] gives the derivative of the states.
 
-# Store all symbolic expressions for outputs into vars
-for y_name, e in zip(dae.y(), ca.vertsplit(out["ydef"])):
-    vars[y_name] = e
+# Store all symbolic expressions for outputs 
+y_sym = {}
+for y_name, expression in zip(dae.y(), ca.vertsplit(out["ydef"])):
+    y_sym[y_name] = expression
 
 # Formulate objective
-ocp.add_objective(ocp.integral(vars['objectiveIntegrand']))
+ocp.add_objective(ocp.integral(y_sym['objectiveIntegrand']))
+
+# Formulate objective
+# ocp.add_objective(ocp.integral(dae('objectiveIntegrand')))
 
 # Set constraints
-ocp.subject_to(-1 <= (vars['u'] <= 0.75))
+ocp.subject_to(-1 <= (dae('u') <= 0.75))
 
 # Set initial guesses for unknowns
 for i, u_name in enumerate(dae.u()):
-    ocp.set_initial(vars[u_name], u0[i])
+    ocp.set_initial(dae(u_name), u0[i])
 for i, x_name in enumerate(dae.x()):
-    ocp.set_initial(vars[x_name], x0[i])
+    ocp.set_initial(dae(x_name), x0[i])
 
 # Solve ocp
 def check_iterations(iter, sol):
     print(iter)
-    print(sol.value(vars['u']))
+    print(sol.value(dae('u')))
 
 ocp.callback(check_iterations)
 
@@ -217,8 +217,8 @@ except:
     sol = ocp.non_converged_solution
 
 sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
-for var_name, var_value in vars.items():
-    sol_dict[var_name] = sol.sample(var_value, grid="integrator")[1]
+for var_name in dae.x()+dae.u()+dae.y():
+    sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
 
 df = pd.DataFrame(sol_dict)
 
