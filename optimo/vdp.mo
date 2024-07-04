@@ -2,7 +2,7 @@ model vdp
   "Van der Pol oscillator model with a default controller"
   
   Real x1(start=0, nominal=1) "The first state";  
-  Real x2(start=0, nominal=1) "The second state"; 
+  Real x2(start=1, nominal=1) "The second state"; 
   input Real u(start=0, nominal=1) "The control signal"; 
   output Real objectiveIntegrand(nominal=1) "The objective integrand signal"; 
 
