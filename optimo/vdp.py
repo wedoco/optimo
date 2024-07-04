@@ -3,11 +3,33 @@ import zipfile
 from pathlib import Path
 import casadi as cs
 import rockit
-import numpy as np
+import pandas as pd
+import os
+import shutil
+
+import plotly.graph_objects as go
+import plotly.io as pio
+from plotly.subplots import make_subplots
 
 
 
-def loadFiles(omc, mo_files=[]):
+def plot_from_def(plot_def, df, show=True, save_to_file=False, filename='plot.html'):
+    fig = make_subplots(rows=len(plot_def), cols=1, shared_xaxes=True, vertical_spacing=0.05)
+    for i, p in enumerate(plot_def.keys()):
+        fig.update_yaxes(title_text=p, row=i+1, col=1)
+        offset = plot_def[p]['offset'] if 'offset' in plot_def[p].keys() is not None else 0
+        factor = plot_def[p]['factor'] if 'factor' in plot_def[p].keys() is not None else 1
+        for v in plot_def[p]['vars']:
+            fig.add_trace(go.Scatter(x=df.index, name=v,
+                                    y=df[v]*factor+offset), row=i+1, col=1)
+    fig.update_layout(height=800)
+    if show: 
+        fig.show()
+    if save_to_file:
+        pio.write_html(fig, file=filename, auto_open=False)
+
+
+def load_modelica_files(omc, modelica_files=[]):
     """
     Load required Modelica files and packages.
 
@@ -15,14 +37,17 @@ def loadFiles(omc, mo_files=[]):
 
     """
 
+        
     # Load needed model files and libraries.
-    for f in mo_files:
+    for f in modelica_files:
         print('Loading {} ...'.format(f))
-        omc.sendExpression('loadFile(\"{}\")'.format(f))
+        if omc.loadFile(f).startswith('false'):
+          raise Exception('Modelica compilation failed: {}'.format(omc.sendExpression('getErrorString()')))
+        # omc.sendExpression('loadFile(\"{}\")'.format(f))
 
     print('List of defined Modelica class names: {}'.format(omc.sendExpression("getClassNames()")))
 
-def buildModelFMU(omc, mo_class, commandLineOptions=None):
+def build_model_fmu(omc, mo_class, commandLineOptions=None):
     """
     Compile an FMU from a Modelica model.
 
@@ -40,9 +65,31 @@ def buildModelFMU(omc, mo_class, commandLineOptions=None):
 
     # Translate model to FMU.
     fmu_path = omc.sendExpression('buildModelFMU({0}, version=\"{1}\")'.format(mo_class, fmu_version))
+    flag = omc.sendExpression('getErrorString()')
+    if not fmu_path.endswith('.fmu'): raise Exception(f'FMU generation failed: {flag}')
+    print(f"translateModelFMU warnings:\n{flag}")
+
     # fmu_path = self.omc.sendExpression('buildModelFMU({0}, version=\"{1}\", fmuType=\"cs\")'.format(mo_class, self.fmu_version))
 
     return fmu_path
+
+
+def unpack_fmu(fmu_file):
+  """
+  Unpack the contents of an FMU file
+  """
+  # To create a directory, strip the .fmu ending from the fmu_file and add a timestamp
+  from datetime import datetime
+  suffix = datetime.now().strftime("_%Y-%m-%d_%H-%M-%S")
+  unpacked_fmu = os.path.join(os.getcwd(),fmu_file[:fmu_file.find('.')] + suffix)
+  # Unzip
+  import zipfile
+  with zipfile.ZipFile(fmu_file, 'r') as zip_ref: zip_ref.extractall(unpacked_fmu)
+  print(f'Unpacked {fmu_file} into {unpacked_fmu}')
+  return unpacked_fmu
+
+def cleanup_fmu(unpacked_fmu):
+  shutil.rmtree(unpacked_fmu)
 
 def explore_dae_builder(dae_builder):
     print(f"\nParameters and initial guesses ({dae_builder.np()}):")
@@ -72,36 +119,34 @@ def explore_dae_builder(dae_builder):
 # Arguments:
 fmu_version = 2.0
 model='vdp'
+force_recompile=True
 omc = OMCSessionZMQ()
-u_optimize = ['u']
+u_opt = ['u']
+
 T_horizon = 20
 N = 100  # integration horizon
 M = 1  # integrations steps per control interval
 ####
 
-loadFiles(omc, mo_files=[f'{model}.mo'])
-fmu_path = buildModelFMU(omc, f'{model}')
-fmu_path = Path(f'{model}.fmu').resolve()
+# Compile the FMU if needed
+if force_recompile:
+    load_modelica_files(omc, modelica_files=[f'{model}.mo'])
+    build_model_fmu(omc, f'{model}')
+fmu_path = str(Path(f'{model}.fmu').resolve())
 
-# Unzip FMU (we like to avoid a dependency on libz in CasADi)
-unzipped_path = fmu_path.parent / fmu_path.stem
-with zipfile.ZipFile(fmu_path, 'r') as zip_ref:
-    zip_ref.extractall(unzipped_path)
-
-# Parse FMU
-dae_builder = cs.DaeBuilder('model', str(unzipped_path), {"debug": False})
+# Parse FMU to dae_builder object
+dae_builder = cs.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
 explore_dae_builder(dae_builder)
 
-# Check that all u_optimize exist in the model
-for ui in u_optimize:
-    assert ui in dae_builder.u()
+# Check that all u_opt exist in the model
+assert all(u_name in dae_builder.u() for u_name in u_opt)
 
 # Extracting initial values for the model
 p0 = dae_builder.get(dae_builder.p())
 x0 = dae_builder.get(dae_builder.x())
 u0 = dae_builder.get(dae_builder.u())
-u_optimize0 = dae_builder.get(u_optimize)
+u_opt_0 = dae_builder.get(u_opt)
 
 # For debugging: inspect system
 dae_builder.disp(True)
@@ -118,7 +163,7 @@ f = dae_builder.create('f', ['x', 'u'], ['ode', 'ydef'])
 # Redefine the API of f
 x = cs.vcat([dae_builder.var(name) for name in dae_builder.x()])
 u = cs.vcat([dae_builder.var(name) for name in dae_builder.u()])
-optimize = cs.vcat([dae_builder.var(name) for name in u_optimize])
+optimize = cs.vcat([dae_builder.var(name) for name in u_opt])
 
 f = cs.Function('f', [x, optimize], f(x, u), ['x', 'optimize'], ['ode', 'ydef'])
 
@@ -146,7 +191,7 @@ for x_label in dae_builder.x():
     ocp.register_state(dae_builder.var(x_label), scale=dae_builder.nominal(x_label))
 
 # Loop over all inputs to optimize
-for u_label in u_optimize:
+for u_label in u_opt:
     # Pull symbol out of dae_builder
     vars[u_label] = dae_builder.var(u_label)
 
@@ -174,8 +219,8 @@ ocp.add_objective(ocp.integral(vars['objectiveIntegrand']))
 ocp.subject_to(-1 <= (vars['u'] <= 0.75))
 
 # Set initial guesses for unknowns
-for i, u_name in enumerate(u_optimize):
-    ocp.set_initial(vars[u_name], u_optimize0[i])
+for i, u_name in enumerate(u_opt):
+    ocp.set_initial(vars[u_name], u_opt_0[i])
 for i, x_name in enumerate(dae_builder.x()):
     ocp.set_initial(vars[x_name], x0[i])
 
@@ -193,8 +238,18 @@ except:
     ocp.show_infeasibilities(1e-7)
     sol = ocp.non_converged_solution
 
-sol_dict = {}
+sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
 for var_name, var_value in vars.items():
-    sol_dict[var_name] = sol.sample(var_value, grid="integrator")
+    sol_dict[var_name] = sol.sample(var_value, grid="integrator")[1]
 
-    
+df = pd.DataFrame(sol_dict)
+
+plot_def = {}
+plot_def['x1'] = {}
+plot_def['x1']['vars'] = ['x1']
+plot_def['x2'] = {}
+plot_def['x2']['vars'] = ['x2']
+plot_def['u'] = {}
+plot_def['u']['vars'] = ['u']
+
+plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot.html')
