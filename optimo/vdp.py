@@ -195,15 +195,13 @@ dae_dict["u"] = u
 dae_dict["ode"]  = out_ode["ode"]
 opts = {}
 opts["print_stats"] = False
-# Number of Runge-Kutta steps per time grid interval
-opts["number_of_finite_elements"] = 1
 
 t0 = 0
 dt_input = T_horizon / N
 dt_output = dt_input / (N - 1) * N
 tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
-sim_function = ca.integrator("simulator", "rk", dae_dict, 0, tgrid, opts)
+sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 
 res_sim = sim_function(x0=x0, u=u_ext_sim)
 x_sim = res_sim["xf"].full()
