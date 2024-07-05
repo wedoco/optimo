@@ -162,6 +162,7 @@ N = 100  # integration horizon
 M = 1  # integrations steps per control interval
 
 u_ext_sim = np.zeros((1, N+1))
+x_ext_0 = np.array([2, 0])
 
 ####
 
@@ -176,10 +177,10 @@ dae = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
 explore_dae(dae)
 
-# Extracting initial values for the model
+# Get external values if provided. Otherwise use those from the model
 p0 = dae.get(dae.p())
-x0 = dae.get(dae.x())
-u0 = dae.get(dae.u())
+x_ext_0   = x_ext_0 if x_ext_0 is not None else dae.get(dae.x())
+u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1, N+1))
 
 # Extract symbols for states and inputs
 x = ca.vcat([dae.var(name) for name in dae.x()])
@@ -203,7 +204,7 @@ tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
 sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 
-res_sim = sim_function(x0=x0, u=u_ext_sim)
+res_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_sim["xf"].full()
 # y_sim = res_sim["yf"].full()
 res = get_dae_results(tgrid, dae, x_sim, t0)
