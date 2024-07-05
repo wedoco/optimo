@@ -5,6 +5,7 @@ import casadi as ca
 import rockit
 import pandas as pd
 import os
+import numpy as np
 import shutil
 
 import plotly.graph_objects as go
@@ -27,7 +28,6 @@ def plot_from_def(plot_def, df, show=True, save_to_file=False, filename='plot.ht
         fig.show()
     if save_to_file:
         pio.write_html(fig, file=filename, auto_open=False)
-
 
 def load_modelica_files(omc, modelica_files=[]):
     """
@@ -73,7 +73,6 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
 
     return fmu_path
 
-
 def unpack_fmu(fmu_file):
   """
   Unpack the contents of an FMU file
@@ -112,6 +111,42 @@ def explore_dae(dae):
     for y_name in dae.y():
         print(f' * {y_name}: initial values {dae.get(y_name)}, nominal {dae.nominal(y_name)}')
 
+def get_dae_results(tgrid, dae, x_sim: np.array, t0: int) -> dict:
+    """
+    Return the simulation results as a dictionary with the right keywords.
+
+    Parameters
+    ----------
+    x_sim: np.array
+        Model state trajectories.
+    y_sim: np.array
+        Model output trajectories.
+    t0: integer
+        Initial time. Used to return the right time vector.
+
+    Returns
+    -------
+    res: dictionary
+        Result trajectories as {res_variable: values}
+    """
+    res = {}
+
+    # Move the time to the right starting point
+    time_array = np.array(t0 + tgrid)
+    res["time"] = time_array
+
+    # Get the states
+    for i, xi in enumerate(dae.x()):
+        x_name = str(xi)
+        x_array = np.array(x_sim[i, :].T)
+        res[x_name] = x_array
+
+    # for i, yi in enumerate(dae.y()):
+    #     y_name = str(yi)
+    #     y_array = np.array(y_sim[i, :].T)
+    #     res[y_name] = y_array
+
+    return res
 
 ####
 # Start of the transfer_model method. 
@@ -125,6 +160,9 @@ omc = OMCSessionZMQ()
 T_horizon = 20
 N = 100  # integration horizon
 M = 1  # integrations steps per control interval
+
+u_ext_sim = np.zeros((1, N+1))
+
 ####
 
 # Compile the FMU if needed
@@ -143,9 +181,49 @@ p0 = dae.get(dae.p())
 x0 = dae.get(dae.x())
 u0 = dae.get(dae.u())
 
-# Redefine the API of f
+# Extract symbols for states and inputs
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
+
+# Perform a symbolic call to the system dynamics and output Function
+f_ode = dae.create("f_ode", ["x", "u"], ['ode'])
+out_ode = f_ode(x=x, u=u)  
+
+dae_dict = {}
+dae_dict["x"] = x
+dae_dict["u"] = u
+dae_dict["ode"]  = out_ode["ode"]
+opts = {}
+opts["print_stats"] = False
+# Number of Runge-Kutta steps per time grid interval
+opts["number_of_finite_elements"] = 1
+
+t0 = 0
+dt_input = T_horizon / N
+dt_output = dt_input / (N - 1) * N
+tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
+
+sim_function = ca.integrator("simulator", "rk", dae_dict, 0, tgrid, opts)
+
+res_sim = sim_function(x0=x0, u=u_ext_sim)
+x_sim = res_sim["xf"].full()
+# y_sim = res_sim["yf"].full()
+res = get_dae_results(tgrid, dae, x_sim, t0)
+
+df = pd.DataFrame(res)
+
+plot_def = {}
+plot_def['x1'] = {}
+plot_def['x1']['vars'] = ['x1']
+plot_def['x2'] = {}
+plot_def['x2']['vars'] = ['x2']
+# plot_def['u'] = {}
+# plot_def['u']['vars'] = ['u']
+
+plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot.html')
+
+
+
 
 
 # Define rockit ocp problem
@@ -168,7 +246,7 @@ for x_name in dae.x():
 # Loop over all inputs to optimize
 for u_name in dae.u():
     # Let rockit know that this symbol is a control
-    ocp.register_control(dae.var(u_name), scale=dae.nominal(u_name))
+    ocp.register_parameter(dae.var(u_name), scale=dae.nominal(u_name))
 
 # Loop over all outputs
 for y_name in dae.y():
@@ -187,6 +265,22 @@ y_sym = {}
 for y_name, expression in zip(dae.y(), ca.vertsplit(out["ydef"])):
     y_sym[y_name] = expression
 
+# Set initial guesses for unknowns
+for i, u_name in enumerate(dae.u()):
+    ocp.set_value(dae(u_name), u0[i])
+for i, x_name in enumerate(dae.x()):
+    ocp.set_initial(dae(x_name), x0[i])
+
+ocp.set_t0(0)
+
+sol = ocp.solve()
+
+sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
+for var_name in dae.x()+dae.u()+dae.y():
+    sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
+
+df = pd.DataFrame(sol_dict)
+
 # Formulate objective
 ocp.add_objective(ocp.integral(y_sym['objectiveIntegrand']))
 
@@ -195,12 +289,6 @@ ocp.add_objective(ocp.integral(y_sym['objectiveIntegrand']))
 
 # Set constraints
 ocp.subject_to(-1 <= (dae('u') <= 0.75))
-
-# Set initial guesses for unknowns
-for i, u_name in enumerate(dae.u()):
-    ocp.set_initial(dae(u_name), u0[i])
-for i, x_name in enumerate(dae.x()):
-    ocp.set_initial(dae(x_name), x0[i])
 
 # Solve ocp
 def check_iterations(iter, sol):
@@ -215,19 +303,3 @@ except:
     print("Solution not converged!!")
     ocp.show_infeasibilities(1e-7)
     sol = ocp.non_converged_solution
-
-sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
-for var_name in dae.x()+dae.u()+dae.y():
-    sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
-
-df = pd.DataFrame(sol_dict)
-
-plot_def = {}
-plot_def['x1'] = {}
-plot_def['x1']['vars'] = ['x1']
-plot_def['x2'] = {}
-plot_def['x2']['vars'] = ['x2']
-plot_def['u'] = {}
-plot_def['u']['vars'] = ['u']
-
-plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot.html')
