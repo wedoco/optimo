@@ -164,7 +164,7 @@ force_recompile=False
 omc = OMCSessionZMQ()
 
 T_horizon = 20 # prediction horizon in seconds
-N = 100  # number of integration steps in the prediction horizon
+N = 500  # number of integration steps in the prediction horizon
 M = 1  # number of integrations steps per control interval
 
 u_ext_sim = np.zeros((1, N+1))
