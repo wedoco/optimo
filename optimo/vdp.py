@@ -13,6 +13,24 @@ import plotly.io as pio
 from plotly.subplots import make_subplots
 
 
+### PSEUDOCODE OF WHAT WE WANT TO ACHIEVE ###
+# mo = transfer_model('vdp', force_recompile=True)
+
+# t  = np.linspace(0.,10.,100) # Create one hundred evenly spaced points 
+# u1 = np.sin(t)               # Create the first input vector 
+# u2 = np.cos(t)               # Create the second input vector 
+# u_traj = np.transpose(np.vstack((t,u1,u2))) # Create the data matrix and # transpose it to the correct form 
+# input_object = (['u1','u2'], u_traj) # Define the input object
+
+# res_sim = mo.simulate(final_time=10, input=input_object)
+
+# mo.set_init_traj(res_sim)   # Set the initial trajectory for the optimization
+# d = np.tan(t)               # Create the disturbance vector
+# mo.set_external_data(d)     # Set the disturbance vector
+
+# res_opt = mo.optimize()
+
+
 
 def plot_from_def(plot_def, df, show=True, save_to_file=False, filename='plot.html'):
     fig = make_subplots(rows=len(plot_def)-1, cols=1, shared_xaxes=True, vertical_spacing=0.02)
