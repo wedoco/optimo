@@ -223,14 +223,12 @@ plot_def = {}
 plot_def['x'] = {}
 plot_def['x']['values'] = tgrid
 plot_def['x']['title'] = 'Time (s)'
-plot_def['x1'] = {}
-plot_def['x1']['vars'] = ['x1']
-plot_def['x2'] = {}
-plot_def['x2']['vars'] = ['x2']
+plot_def['Angle (rad)'] = {}
+plot_def['Angle (rad)']['vars'] = ['x1', 'x2']
 # plot_def['u'] = {}
 # plot_def['u']['vars'] = ['u']
 
-plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot.html')
+plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot_sim.html')
 
 
 
