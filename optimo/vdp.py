@@ -207,7 +207,8 @@ dt_input = T_horizon / N
 dt_output = dt_input / (N - 1) * N
 tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
-u_ext_sim = np.ones((1, N+1))*0.2
+u_ext_sim = np.cos(tgrid).reshape(1, N+1)*0.2
+# u_ext_sim = np.ones((1, N+1))*0.2
 # x_ext_0 = np.array([2, 0])
 # u_ext_sim = None
 x_ext_0 = None
