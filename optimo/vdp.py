@@ -145,7 +145,7 @@ def explore_dae(dae):
     for y_name in dae.y():
         print(f' * {y_name}: initial values {dae.get(y_name)}, nominal {dae.nominal(y_name)}')
 
-def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, t0: int) -> dict:
+def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, u_sim: np.array, t0: int) -> dict:
     """
     Return the simulation results as a dictionary with the right keywords.
 
@@ -155,6 +155,8 @@ def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, t0: int) -> di
         Model state trajectories.
     y_sim: np.array
         Model output trajectories.
+    u_sim: np.array
+        Model input trajectories.
     t0: integer
         Initial time. Used to return the right time vector.
 
@@ -179,6 +181,11 @@ def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, t0: int) -> di
         y_name = str(yi)
         y_array = np.array(y_sim[i, :].T)
         res[y_name] = y_array
+
+    for i, ui in enumerate(dae.u()):
+        u_name = str(ui)
+        u_array = np.array(u_sim[i, :].T)
+        res[u_name] = u_array
 
     return res
 
@@ -226,7 +233,8 @@ u = ca.vcat([dae.var(name) for name in dae.u()])
 f_x = dae.create("f_x", ["x", "u"], ['ode'])
 
 # Define symbolic function from states and inputs to the system outputs
-f_y = dae.create("f_y", ["x", "u"], ["ydef"])
+# The inputs are also returned to read them as they are perceived by the model
+f_y = dae.create("f_y", ["x", "u"], ["ydef", "u"])
 
 out_f_x = f_x(x=x, u=u)  
 
@@ -248,11 +256,12 @@ res_x_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_x_sim["xf"].full()
 
 # Now evaluate the outputs from inputs and computed dynamics
-res_y_sim = f_y(x=x_sim, u=u_ext_sim)
-y_sim = res_y_sim["ydef"].full()
+res_uy_sim = f_y(x=x_sim, u=u_ext_sim)
+y_sim = res_uy_sim["ydef"].full()
+u_sim = res_uy_sim["u"].full()
 
 # y_sim = res_sim["yf"].full()
-res = get_dae_results(tgrid, dae, x_sim, y_sim, t0)
+res = get_dae_results(tgrid, dae, x_sim, y_sim, u_sim, t0)
 
 df = pd.DataFrame(res)
 
@@ -264,8 +273,8 @@ plot_def['Angle (rad)'] = {}
 plot_def['Angle (rad)']['vars'] = ['x1', 'x2']
 plot_def['Outputs'] = {}
 plot_def['Outputs']['vars'] = ['objectiveIntegrand']
-# plot_def['u'] = {}
-# plot_def['u']['vars'] = ['u']
+plot_def['Inputs'] = {}
+plot_def['Inputs']['vars'] = ['u']
 
 plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot_sim.html')
 
