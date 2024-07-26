@@ -145,7 +145,7 @@ def explore_dae(dae):
     for y_name in dae.y():
         print(f' * {y_name}: initial values {dae.get(y_name)}, nominal {dae.nominal(y_name)}')
 
-def get_dae_results(tgrid, dae, x_sim: np.array, t0: int) -> dict:
+def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, t0: int) -> dict:
     """
     Return the simulation results as a dictionary with the right keywords.
 
@@ -175,10 +175,10 @@ def get_dae_results(tgrid, dae, x_sim: np.array, t0: int) -> dict:
         x_array = np.array(x_sim[i, :].T)
         res[x_name] = x_array
 
-    # for i, yi in enumerate(dae.y()):
-    #     y_name = str(yi)
-    #     y_array = np.array(y_sim[i, :].T)
-    #     res[y_name] = y_array
+    for i, yi in enumerate(dae.y()):
+        y_name = str(yi)
+        y_array = np.array(y_sim[i, :].T)
+        res[y_name] = y_array
 
     return res
 
@@ -243,13 +243,16 @@ sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 x_ext_0   = x_ext_0 if x_ext_0 is not None else dae.get(dae.x())
 u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1, N+1))
 
-# Simuilate the model
-res_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
-x_sim = res_sim["xf"].full()
-res_sim.keys()
-res_sim["qf"].full()
+# Simuilate the model dynamics
+res_x_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
+x_sim = res_x_sim["xf"].full()
+
+# Now evaluate the outputs from inputs and computed dynamics
+res_y_sim = f_y(x=x_sim, u=u_ext_sim)
+y_sim = res_y_sim["ydef"].full()
+
 # y_sim = res_sim["yf"].full()
-res = get_dae_results(tgrid, dae, x_sim, t0)
+res = get_dae_results(tgrid, dae, x_sim, y_sim, t0)
 
 df = pd.DataFrame(res)
 
@@ -259,6 +262,8 @@ plot_def['x']['values'] = tgrid
 plot_def['x']['title'] = 'Time (s)'
 plot_def['Angle (rad)'] = {}
 plot_def['Angle (rad)']['vars'] = ['x1', 'x2']
+plot_def['Outputs'] = {}
+plot_def['Outputs']['vars'] = ['objectiveIntegrand']
 # plot_def['u'] = {}
 # plot_def['u']['vars'] = ['u']
 
