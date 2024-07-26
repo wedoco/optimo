@@ -212,14 +212,18 @@ explore_dae(dae)
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
 
-# Perform a symbolic call to the system dynamics and output Function
-f_ode = dae.create("f_ode", ["x", "u"], ['ode'])
-out_ode = f_ode(x=x, u=u)  
+# Define symbolic function from states and inputs to the system dynamics
+f_x = dae.create("f_x", ["x", "u"], ['ode'])
+
+# Define symbolic function from states and inputs to the system outputs
+f_y = dae.create("f_y", ["x", "u"], ["ydef"])
+
+out_f_x = f_x(x=x, u=u)  
 
 dae_dict = {}
 dae_dict["x"] = x
 dae_dict["u"] = u
-dae_dict["ode"]  = out_ode["ode"]
+dae_dict["ode"]  = out_f_x["ode"]
 opts = {}
 opts["print_stats"] = False
 
@@ -232,6 +236,8 @@ u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1,
 # Simuilate the model
 res_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_sim["xf"].full()
+res_sim.keys()
+res_sim["qf"].full()
 # y_sim = res_sim["yf"].full()
 res = get_dae_results(tgrid, dae, x_sim, t0)
 
