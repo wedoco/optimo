@@ -157,9 +157,9 @@ model='vdp'
 force_recompile=False
 omc = OMCSessionZMQ()
 
-T_horizon = 20
-N = 100  # integration horizon
-M = 1  # integrations steps per control interval
+T_horizon = 20 # prediction horizon in seconds
+N = 100  # number of integration steps in the prediction horizon
+M = 1  # number of integrations steps per control interval
 
 u_ext_sim = np.zeros((1, N+1))
 x_ext_0 = np.array([2, 0])
