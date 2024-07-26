@@ -167,8 +167,10 @@ T_horizon = 10 # prediction horizon in seconds
 N = 500  # number of integration steps in the prediction horizon
 M = 1  # number of integrations steps per control interval
 
-u_ext_sim = np.zeros((1, N+1))
-x_ext_0 = np.array([2, 0])
+# u_ext_sim = np.zeros((1, N+1))
+# x_ext_0 = np.array([2, 0])
+u_ext_sim = None
+x_ext_0 = None
 
 t0 = 0
 dt_input = T_horizon / N
@@ -205,6 +207,11 @@ opts["print_stats"] = False
 
 sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 
+# Get external values if provided. Otherwise use those from the model
+x_ext_0   = x_ext_0 if x_ext_0 is not None else dae.get(dae.x())
+u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1, N+1))
+
+# Simuilate the model
 res_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_sim["xf"].full()
 # y_sim = res_sim["yf"].full()
