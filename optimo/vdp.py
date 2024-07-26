@@ -170,6 +170,11 @@ M = 1  # number of integrations steps per control interval
 u_ext_sim = np.zeros((1, N+1))
 x_ext_0 = np.array([2, 0])
 
+t0 = 0
+dt_input = T_horizon / N
+dt_output = dt_input / (N - 1) * N
+tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
+
 ####
 
 # Compile the FMU if needed
@@ -197,11 +202,6 @@ dae_dict["u"] = u
 dae_dict["ode"]  = out_ode["ode"]
 opts = {}
 opts["print_stats"] = False
-
-t0 = 0
-dt_input = T_horizon / N
-dt_output = dt_input / (N - 1) * N
-tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
 sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 
