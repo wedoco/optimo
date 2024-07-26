@@ -163,7 +163,7 @@ model='vdp'
 force_recompile=False
 omc = OMCSessionZMQ()
 
-T_horizon = 20 # prediction horizon in seconds
+T_horizon = 10 # prediction horizon in seconds
 N = 500  # number of integration steps in the prediction horizon
 M = 1  # number of integrations steps per control interval
 
