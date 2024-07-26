@@ -183,11 +183,6 @@ dae = ca.DaeBuilder("model", unpack_fmu(fmu_path), {"debug": False})
 
 explore_dae(dae)
 
-# Get external values if provided. Otherwise use those from the model
-p0 = dae.get(dae.p())
-x_ext_0   = x_ext_0 if x_ext_0 is not None else dae.get(dae.x())
-u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1, N+1))
-
 # Extract symbols for states and inputs
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
