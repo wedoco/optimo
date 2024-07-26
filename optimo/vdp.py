@@ -167,7 +167,7 @@ x_ext_0 = np.array([2, 0])
 ####
 
 # Compile the FMU if needed
-if force_recompile:
+if not os.path.exists(f'{model}.fmu') or force_recompile:
     load_modelica_files(omc, modelica_files=[f'{model}.mo'])
     build_model_fmu(omc, f'{model}')
 fmu_path = str(Path(f'{model}.fmu').resolve())
