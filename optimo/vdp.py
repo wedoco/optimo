@@ -30,6 +30,16 @@ from plotly.subplots import make_subplots
 
 # res_opt = mo.optimize()
 
+# mpc = mo.build_mpc(m_map={'m1_model': 'm1_sys'})        # Build the MPC controller
+# sys = initialize_sys()                                  # Initialize the system
+
+# m = sys.reset()
+# for i in range(100):
+#     d = sys.get_disturbance_forecast()
+#     u = mpc.get_control(m, d)
+#     m = sys.step(u)
+
+# mpc.show_stats()
 
 
 def plot_from_def(plot_def, df, show=True, save_to_file=False, filename='plot.html'):
