@@ -202,15 +202,15 @@ T_horizon = 10 # prediction horizon in seconds
 N = 500  # number of integration steps in the prediction horizon
 M = 1  # number of integrations steps per control interval
 
-# u_ext_sim = np.zeros((1, N+1))
-# x_ext_0 = np.array([2, 0])
-u_ext_sim = None
-x_ext_0 = None
-
 t0 = 0
 dt_input = T_horizon / N
 dt_output = dt_input / (N - 1) * N
 tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
+
+u_ext_sim = np.ones((1, N+1))*0.2
+# x_ext_0 = np.array([2, 0])
+# u_ext_sim = None
+x_ext_0 = None
 
 ####
 
