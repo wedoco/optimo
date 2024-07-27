@@ -230,19 +230,16 @@ explore_dae(dae)
 x = ca.vcat([dae.var(name) for name in dae.x()])
 u = ca.vcat([dae.var(name) for name in dae.u()])
 
-# Define symbolic function from states and inputs to the system dynamics
-f_x = dae.create("f_x", ["x", "u"], ['ode'])
-
-# Define symbolic function from states and inputs to the system outputs
+# Define symbolic function from states and inputs to the system outputs and states
 # The inputs are also returned to read them as they are perceived by the model
-f_y = dae.create("f_y", ["x", "u"], ["ydef", "u"])
+f = dae.create("f_y", ["x", "u"], ["ode", "ydef", "u"])
 
-out_f_x = f_x(x=x, u=u)  
+out_f = f(x=x, u=u)  
 
 dae_dict = {}
 dae_dict["x"] = x
 dae_dict["u"] = u
-dae_dict["ode"]  = out_f_x["ode"]
+dae_dict["ode"]  = out_f["ode"]
 opts = {}
 opts["print_stats"] = False
 
@@ -257,9 +254,9 @@ res_x_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_x_sim["xf"].full()
 
 # Now evaluate the outputs from inputs and computed dynamics
-res_uy_sim = f_y(x=x_sim, u=u_ext_sim)
-y_sim = res_uy_sim["ydef"].full()
-u_sim = res_uy_sim["u"].full()
+res_xyu_sim = f(x=x_sim, u=u_ext_sim)
+y_sim = res_xyu_sim["ydef"].full()
+u_sim = res_xyu_sim["u"].full()
 
 # y_sim = res_sim["yf"].full()
 res = get_dae_results(tgrid, dae, x_sim, y_sim, u_sim, t0)
