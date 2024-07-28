@@ -328,10 +328,10 @@ if optimize:
         ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
     # Perform a symbolic call to the system dynamics and output Function
-    out_ocp = f_xu_xyu(x=ocp.x, u=ocp.u)  
+    out_ocp = f_xu_xyu(x=x, u=u)  
 
     # Let rockit know what the state dynamics are
-    ocp.set_der(ocp.x, out_ocp["ode"])  # out_ocp['ode'] gives the derivative of the states.
+    ocp.set_der(x, out_ocp["ode"])  # out_ocp['ode'] gives the derivative of the states.
 
     # Store all symbolic expressions for outputs 
     # y_sym = {}
@@ -343,7 +343,7 @@ if optimize:
     #     ocp.set_initial(ocp.u[i], u_ext_sim[i])
 
     for i, x_name in enumerate(dae.x()):
-        ocp.subject_to(ocp.at_t0(ocp.x[i]) == x_ext_0[i])
+        ocp.subject_to(ocp.at_t0(dae.var(x_name)) == x_ext_0[i])
 
     ocp.set_t0(0)
 
