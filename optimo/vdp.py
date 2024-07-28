@@ -203,14 +203,12 @@ N = 500  # number of integration steps in the prediction horizon
 M = 1  # number of integrations steps per control interval
 
 t0 = 0
-dt_input = T_horizon / N
-dt_output = dt_input / (N - 1) * N
 tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
-u_ext_sim = np.cos(tgrid).reshape(1, N+1)*0.2
+# u_ext_sim = np.cos(tgrid).reshape(1, N+1)*0.2
 # u_ext_sim = np.ones((1, N+1))*0.2
 # x_ext_0 = np.array([2, 0])
-# u_ext_sim = None
+u_ext_sim = None
 x_ext_0 = None
 
 ####
@@ -232,9 +230,9 @@ u = ca.vcat([dae.var(name) for name in dae.u()])
 
 # Define symbolic function from states and inputs to the system outputs and states
 # The inputs are also returned to read them as they are perceived by the model
-f = dae.create("f_y", ["x", "u"], ["ode", "ydef", "u"])
+f_xu_xyu = dae.create("f_y", ["x", "u"], ["ode", "ydef", "u"])
 
-out_f = f(x=x, u=u)  
+out_f = f_xu_xyu(x=x, u=u)  
 
 dae_dict = {}
 dae_dict["x"] = x
@@ -254,7 +252,7 @@ res_x_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
 x_sim = res_x_sim["xf"].full()
 
 # Now evaluate the outputs from inputs and computed dynamics
-res_xyu_sim = f(x=x_sim, u=u_ext_sim)
+res_xyu_sim = f_xu_xyu(x=x_sim, u=u_ext_sim)
 y_sim = res_xyu_sim["ydef"].full()
 u_sim = res_xyu_sim["u"].full()
 
@@ -280,17 +278,31 @@ plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot_sim.ht
 
 
 
+T_horizon = 20 # prediction horizon in seconds
+N = 500  # number of integration steps in the prediction horizon
+M = 1  # number of integrations steps per control interval
+
+t0 = 0
+tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
+
 # Define rockit ocp problem
 ocp = rockit.Ocp(T=T_horizon)
 
 # Choose transcription method
-# ocp.method(rockit.SingleShooting(N=N, M=M))
-ocp.method(rockit.MultipleShooting(N=N, M=M))
+ocp.method(rockit.SingleShooting(N=N, M=M))
+# ocp.method(rockit.MultipleShooting(N=N, M=M))
 # ocp.method(rockit.DirectCollocation(N=N, M=M))
+
+ipopt_options = {
+    "ipopt.hessian_approximation": "limited-memory",
+    "ipopt.max_iter": 500,
+    "ipopt.tol": 1e-6,
+    "ipopt.hsllib": str((Path(__file__).parent / "solvers" / "libhsl.so").resolve()),
+}
 
 # To make mumps behave more like ma57: "ipopt.mumps_permuting_scaling":0,"ipopt.mumps_scaling":0
 # After scaling manually, it as good idea to turn off ipopt scaling: "ipopt.nlp_scaling_method": none
-ocp.solver("ipopt", {"ipopt.hessian_approximation": "limited-memory"})
+ocp.solver("ipopt", ipopt_options)
 
 # Loop over all states
 for x_name in dae.x():
@@ -300,7 +312,7 @@ for x_name in dae.x():
 # Loop over all inputs to optimize
 for u_name in dae.u():
     # Let rockit know that this symbol is a control
-    ocp.register_parameter(dae.var(u_name), scale=dae.nominal(u_name))
+    ocp.register_control(dae.var(u_name), scale=dae.nominal(u_name))
 
 # Loop over all outputs
 for y_name in dae.y():
@@ -308,35 +320,29 @@ for y_name in dae.y():
     ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
 # Perform a symbolic call to the system dynamics and output Function
-f = dae.create("f", ["x", "u"], ['ode', 'ydef'])
-out = f(x=ocp.x, u=ocp.u)  
+out_ocp = f_xu_xyu(x=ocp.x, u=ocp.u)  
 
 # Let rockit know what the state dynamics are
-ocp.set_der(ocp.x, out["ode"])  # out['ode'] gives the derivative of the states.
+ocp.set_der(ocp.x, out_ocp["ode"])  # out_ocp['ode'] gives the derivative of the states.
 
 # Store all symbolic expressions for outputs 
 y_sym = {}
-for y_name, expression in zip(dae.y(), ca.vertsplit(out["ydef"])):
+for y_name, expression in zip(dae.y(), ca.vertsplit(out_ocp["ydef"])):
     y_sym[y_name] = expression
 
 # Set initial guesses for unknowns
-for i, u_name in enumerate(dae.u()):
-    ocp.set_value(dae(u_name), u0[i])
+# for i, u_name in enumerate(dae.u()):
+#     ocp.set_value(dae(u_name), u_ext_sim[i])
 for i, x_name in enumerate(dae.x()):
-    ocp.set_initial(dae(x_name), x0[i])
+    ocp.set_initial(dae(x_name), x_ext_0[i])
 
 ocp.set_t0(0)
 
-sol = ocp.solve()
-
-sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
-for var_name in dae.x()+dae.u()+dae.y():
-    sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
-
-df = pd.DataFrame(sol_dict)
 
 # Formulate objective
 ocp.add_objective(ocp.integral(y_sym['objectiveIntegrand']))
+
+# sol = ocp.solve()
 
 # Formulate objective
 # ocp.add_objective(ocp.integral(dae('objectiveIntegrand')))
@@ -349,7 +355,7 @@ def check_iterations(iter, sol):
     print(iter)
     print(sol.value(dae('u')))
 
-ocp.callback(check_iterations)
+# ocp.callback(check_iterations)
 
 try:
     sol = ocp.solve()
@@ -357,3 +363,17 @@ except:
     print("Solution not converged!!")
     ocp.show_infeasibilities(1e-7)
     sol = ocp.non_converged_solution
+
+sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
+for var_name in dae.x()+dae.u()+dae.y():
+    sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
+
+# x_sim = sol.sample(ocp.x, grid="integrator")
+# u_sim = sol.sample(ocp.u, grid="integrator")
+# y_sim = sol.sample(ocp.v, grid="integrator")
+# res = get_dae_results(tgrid, dae, x_sim, y_sim, u_sim, t0)
+
+df = pd.DataFrame(sol_dict)
+
+
+plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot_ocp.html')
