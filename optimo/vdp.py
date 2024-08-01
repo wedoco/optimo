@@ -233,6 +233,13 @@ y = ca.vcat([dae.var(name) for name in dae.y()])
 x_ext_0   = x_ext_0 if x_ext_0 is not None else dae.get(dae.x())
 u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1, N+1))
 
+# Define symbolic function from states and inputs to the system outputs and states
+# The inputs are also returned to read them as they are perceived by the model
+f_xu_xyu = dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
+
+# Perform a symbolic call to the system dynamics and output Function
+out_f_xu_xyu = f_xu_xyu(x=x, u=u)  
+
 plot_def = {}
 plot_def['x'] = {}
 plot_def['x']['values'] = tgrid
@@ -244,19 +251,12 @@ plot_def['Outputs']['vars'] = ['objectiveIntegrand']
 plot_def['Inputs'] = {}
 plot_def['Inputs']['vars'] = ['u']
 
-
-simulate = False
+simulate = True
 if simulate:
-    # Define symbolic function from states and inputs to the system outputs and states
-    # The inputs are also returned to read them as they are perceived by the model
-    f_xu_xyu = dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
-
-    out_f = f_xu_xyu(x=x, u=u)  
-
     dae_dict = {}
     dae_dict["x"] = x
     dae_dict["u"] = u
-    dae_dict["ode"]  = out_f["ode"]
+    dae_dict["ode"]  = out_f_xu_xyu["ode"]
     opts = {}
     opts["print_stats"] = False
 
@@ -281,17 +281,6 @@ if simulate:
 
 optimize = True 
 if optimize:
-
-    # Define symbolic function from states and inputs to the system outputs and states
-    # The inputs are also returned to read them as they are perceived by the model
-    f_xu_xyu = dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
-
-    T_horizon = 20 # prediction horizon in seconds
-    N = 100  # number of integration steps in the prediction horizon
-    M = 1  # number of integrations steps per control interval
-
-    t0 = 0
-    tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 
     # Define rockit ocp problem
     ocp = rockit.Ocp(T=T_horizon)
@@ -327,11 +316,8 @@ if optimize:
         # Let rockit know that this symbol is a control
         ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
-    # Perform a symbolic call to the system dynamics and output Function
-    out_ocp = f_xu_xyu(x=x, u=u)  
-
     # Let rockit know what the state dynamics are
-    ocp.set_der(x, out_ocp["ode"])  # out_ocp['ode'] gives the derivative of the states.
+    ocp.set_der(x, out_f_xu_xyu["ode"])  # out_ocp['ode'] gives the derivative of the states.
 
     # Store all symbolic expressions for outputs 
     # y_sym = {}
@@ -349,7 +335,7 @@ if optimize:
 
 
     # Formulate objective
-    ocp.add_objective(ocp.integral(out_ocp['ydef']))
+    ocp.add_objective(ocp.integral(out_f_xu_xyu['ydef']))
 
     # Set constraints
     ocp.subject_to(-1 <= (dae.var('u') <= 0.75))
