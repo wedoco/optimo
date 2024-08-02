@@ -10,7 +10,5 @@ equation
   der(x1) = (1 - x2^2) * x1 - x2 + u; 
   der(x2) = x1; 
   objectiveIntegrand = x1^2 + x2^2 + u^2;
-  
-annotation(
-    experiment(StartTime = 0, StopTime = 20, Tolerance = 1e-06, Interval = 0.04));
+
 end vdp;
