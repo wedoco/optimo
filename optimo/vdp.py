@@ -206,9 +206,6 @@ u_ext_sim = u_ext_sim if u_ext_sim is not None else dae.get(dae.u())*np.ones((1,
 # The inputs are also returned to read them as they are perceived by the model
 f_xu_xyu = dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
 
-# Perform a symbolic call to the system dynamics and output Function
-out_f_xu_xyu = f_xu_xyu(x=x, u=u)  
-
 plot_def = {}
 plot_def['x'] = {}
 plot_def['x']['values'] = tgrid
@@ -225,7 +222,7 @@ if simulate:
     dae_dict = {}
     dae_dict["x"] = x
     dae_dict["u"] = u
-    dae_dict["ode"]  = out_f_xu_xyu["ode"]
+    dae_dict["ode"]  = f_xu_xyu(x=x, u=u)["ode"]
     opts = {}
     opts["print_stats"] = False
 
@@ -240,7 +237,6 @@ if simulate:
     y_sim = res_xyu_sim["ydef"].full()
     u_sim = res_xyu_sim["u"].full()
 
-    # y_sim = res_sim["yf"].full()
     res = get_dae_results(tgrid, dae, x_sim, y_sim, u_sim, t0)
 
     df = pd.DataFrame(res)
@@ -260,10 +256,8 @@ if optimize:
     # ocp.method(rockit.DirectCollocation(N=N, M=M))
 
     ipopt_options = {
-        # "ipopt.hessian_approximation": "limited-memory",
         "ipopt.max_iter": 500,
-        "ipopt.tol": 1e-6,
-        # "ipopt.hsllib": str((Path(__file__).parent / "solvers" / "libhsl.so").resolve()),
+        "ipopt.tol": 1e-6
     }
 
     # To make mumps behave more like ma57: "ipopt.mumps_permuting_scaling":0,"ipopt.mumps_scaling":0
@@ -280,59 +274,35 @@ if optimize:
         # Let rockit know that this symbol is a control
         ocp.register_control(dae.var(u_name), scale=dae.nominal(u_name))
 
-    # Loop over all outputs
+    # Loop over all inputs to optimize
     for y_name in dae.y():
         # Let rockit know that this symbol is a control
         ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
     # Let rockit know what the state dynamics are
-    ocp.set_der(x, out_f_xu_xyu["ode"])  # out_ocp['ode'] gives the derivative of the states.
-
-    # Store all symbolic expressions for outputs 
-    # y_sym = {}
-    # for y_name, expression in zip(dae.y(), ca.vertsplit(out_ocp["ydef"])):
-    #     y_sym[y_name] = expression
-
-    # Set initial guesses for unknowns
-    # for i, u_name in enumerate(dae.u()):
-    #     ocp.set_initial(ocp.u[i], u_ext_sim[i])
+    ocp.set_der(x, f_xu_xyu(x=x, u=u)["ode"])  
 
     for i, x_name in enumerate(dae.x()):
         ocp.subject_to(ocp.at_t0(dae.var(x_name)) == x_ext_0[i])
 
     ocp.set_t0(0)
 
-
     # Formulate objective
-    ocp.add_objective(ocp.integral(out_f_xu_xyu['ydef']))
+    ocp.add_objective(ocp.integral(f_xu_xyu(x=x, u=u)['ydef']))
 
     # Set constraints
     ocp.subject_to(-1 <= (dae.var('u') <= 0.75))
 
-    # Solve ocp
-    def check_iterations(iter, sol):
-        print(iter)
-        print(sol.value(dae('u')))
+    # Solve the optimization problem
+    sol = ocp.solve()
 
-    # ocp.callback(check_iterations)
-
-    try:
-        sol = ocp.solve()
-    except:
-        print("Solution not converged!!")
-        ocp.show_infeasibilities(1e-7)
-        sol = ocp.non_converged_solution
-
-    sol_dict = {'time': sol.sample(ocp.t, grid="integrator")[1]}
-    for var_name in dae.x()+dae.u()+dae.y():
-        sol_dict[var_name] = sol.sample(dae(var_name), grid="integrator")[1]
-
-    # x_sim = sol.sample(ocp.x, grid="integrator")
-    # u_sim = sol.sample(ocp.u, grid="integrator")
-    # y_sim = sol.sample(ocp.v, grid="integrator")
-    # res = get_dae_results(tgrid, dae, x_sim, y_sim, u_sim, t0)
-
-    df = pd.DataFrame(sol_dict)
-
+    # Extract the results
+    x_ocp = np.atleast_2d(sol.sample(ocp.x, grid="integrator")[1].T)
+    u_ocp = np.atleast_2d(sol.sample(ocp.u, grid="integrator")[1].T)
+    res_xyu_ocp = f_xu_xyu(x=x_ocp, u=u_ocp)
+    y_ocp = res_xyu_ocp["ydef"].full()
+    u_ocp = res_xyu_ocp["u"].full()
+    res = get_dae_results(tgrid, dae, x_ocp, y_ocp, u_ocp, t0)
+    df = pd.DataFrame(res)
 
     plot_from_def(plot_def, df, show=False, save_to_file=True, filename='plot_ocp.html')
