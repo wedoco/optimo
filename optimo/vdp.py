@@ -180,6 +180,8 @@ tgrid = np.asarray([T_horizon / N * k for k in range(N + 1)])
 u_ext_sim = None
 x_ext_0 = None
 
+objective_terms = ['objectiveIntegrand']
+
 ####
 
 # Compile the FMU if needed
@@ -287,8 +289,9 @@ if optimize:
 
     ocp.set_t0(0)
 
-    # Formulate objective
-    ocp.add_objective(ocp.integral(f_xu_xyu(x=x, u=u)['ydef']))
+    # Formulate objective from objective terms list
+    for term in objective_terms:
+        ocp.add_objective(ocp.integral(f_xu_xyu(x=x, u=u)['ydef'][dae.y().index(term)]))
 
     # Set constraints
     ocp.subject_to(-1 <= (dae.var('u') <= 0.75))
