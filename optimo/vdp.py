@@ -254,8 +254,8 @@ if optimize:
 
     # Choose transcription method
     # ocp.method(rockit.SingleShooting(N=N, M=M))
-    ocp.method(rockit.MultipleShooting(N=N, M=M))
-    # ocp.method(rockit.DirectCollocation(N=N, M=M))
+    # ocp.method(rockit.MultipleShooting(N=N, M=M))
+    ocp.method(rockit.DirectCollocation(N=N, M=M))
 
     ipopt_options = {
         "ipopt.max_iter": 500,
