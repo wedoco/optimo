@@ -20,5 +20,8 @@ plot_def['Inputs']['vars'] = ['u']
 res_sim_df = mo.simulate()
 plot_from_def(plot_def, res_sim_df, show=False, save_to_file=True, filename='plot_sim.html')
 
-res_ocp_df = mo.optimize(objective_terms=['objectiveIntegrand'])
+mo.initialize_optimization()
+mo.define_optimization(constraints={'u':(-1, 0.75)}, 
+                       objective_terms=['objectiveIntegrand'])
+res_ocp_df = mo.optimize()
 plot_from_def(plot_def, res_ocp_df, show=False, save_to_file=True, filename='plot_ocp.html')

@@ -89,10 +89,7 @@ class OptimoModel:
 
         return res_df
 
-    def optimize(self,
-                 x0: np.array=None,
-                 objective_terms: list=None):
-        
+    def initialize_optimization(self):
         # Define rockit ocp problem
         self.ocp = rockit.Ocp(T=self.t_horizon)
 
@@ -116,11 +113,17 @@ class OptimoModel:
         for u_name in self.dae.u():
             self.ocp.register_control(self.dae.var(u_name), scale=self.dae.nominal(u_name))
 
-        # Get external values if provided. Otherwise use those from the model
-        x0 = x0 if x0 is not None else self.get_default_x0()
-
         # Let rockit know what the state dynamics are
         self.ocp.set_der(self.x, self.f_xu_xyu(x=self.x, u=self.u)["ode"])  
+
+    def define_optimization(self,
+                            x0: np.array=None,
+                            constraints: dict=None,
+                            objective_terms: list=None):
+        
+        
+        # Get external values if provided. Otherwise use those from the model
+        x0 = x0 if x0 is not None else self.get_default_x0()
 
         # Set initial state values
         for i, x_name in enumerate(self.dae.x()):
@@ -135,7 +138,10 @@ class OptimoModel:
             self.ocp.add_objective(self.ocp.integral(self.f_xu_xyu(x=self.x, u=self.u)['ydef'][self.dae.y().index(term)]))
 
         # Set constraints
-        self.ocp.subject_to(-1 <= (self.dae.var('u') <= 0.75))
+        for constrained_var in constraints.keys():
+            self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]))
+
+    def optimize(self):
 
         # Solve the optimization problem
         sol = self.ocp.solve()
@@ -147,6 +153,7 @@ class OptimoModel:
         y_ocp = res_xyu_ocp["ydef"].full()
         u_ocp = res_xyu_ocp["u"].full()
 
+        t0 = 0
         res_df = get_dae_results(self.tgrid, self.dae, x_ocp, y_ocp, u_ocp, t0)
 
         return res_df
