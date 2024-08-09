@@ -3,7 +3,7 @@ from optimo.model import OptimoModel
 
 # Compile and transfer the Modelica model
 mo = OptimoModel()
-mo.transfer_model(model="vdp", force_recompile=False)
+mo.transfer_model(model="vdp")
 
 # Simulate
 res_sim_df = mo.simulate()
