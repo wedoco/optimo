@@ -262,8 +262,6 @@ if optimize:
         "ipopt.tol": 1e-6
     }
 
-    # To make mumps behave more like ma57: "ipopt.mumps_permuting_scaling":0,"ipopt.mumps_scaling":0
-    # After scaling manually, it as good idea to turn off ipopt scaling: "ipopt.nlp_scaling_method": none
     ocp.solver("ipopt", ipopt_options)
 
     # Loop over all states
@@ -275,11 +273,6 @@ if optimize:
     for u_name in dae.u():
         # Let rockit know that this symbol is a control
         ocp.register_control(dae.var(u_name), scale=dae.nominal(u_name))
-
-    # Loop over all inputs to optimize
-    for y_name in dae.y():
-        # Let rockit know that this symbol is a control
-        ocp.register_variable(dae.var(y_name), scale=dae.nominal(y_name))
 
     # Let rockit know what the state dynamics are
     ocp.set_der(x, f_xu_xyu(x=x, u=u)["ode"])  
