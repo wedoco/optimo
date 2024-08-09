@@ -228,10 +228,10 @@ if simulate:
     opts = {}
     opts["print_stats"] = False
 
-    sim_function = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
+    f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, tgrid, opts)
 
     # Simuilate the model dynamics
-    res_x_sim = sim_function(x0=x_ext_0, u=u_ext_sim)
+    res_x_sim = f_sim(x0=x_ext_0, u=u_ext_sim)
     x_sim = res_x_sim["xf"].full()
 
     # Now evaluate the outputs from inputs and computed dynamics
