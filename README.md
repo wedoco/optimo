@@ -62,7 +62,7 @@ If no input trajectories are provided, the simulation runs with the initial inpu
 The output of this script is the following graphs:
 
 ### Simulation results
-![Simulation Results](resources/vdp_sim.png)
+![Simulation Results](assets/vdp_sim.png)
 
 ### Optimization results
-![Optimization Results](resources/vdp_ocp.png)
+![Optimization Results](assets/vdp_ocp.png)
