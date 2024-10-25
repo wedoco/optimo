@@ -38,7 +38,6 @@ mo.transfer_model(model="vdp")
 res_sim_df = mo.simulate()
 
 # Optimize 
-mo.initialize_optimization()
 mo.define_optimization(constraints={"u":(-1, 0.75)}, 
                        objective_terms=["objectiveIntegrand"])
 res_ocp_df = mo.optimize()

@@ -121,7 +121,10 @@ class OptimoModel:
                             constraints: dict=None,
                             objective_terms: list=None):
         
-        
+        # Initialize the optimization problem if not already done. 
+        if not hasattr(self, "ocp"):
+            self.initialize_optimization()
+
         # Get external values if provided. Otherwise use those from the model
         x0 = x0 if x0 is not None else self.get_default_x0()
 
