@@ -10,8 +10,8 @@ build-no-cache:
 run: 
 	docker run \
 		--platform=linux/amd64 \
-		--name modopti \
+		--name ${IMG_NAME} \
 		--detach=false \
 		--network=host \
 		-w /home/developer \
-		--rm -it modopti
+		--rm -it ${IMG_NAME}
