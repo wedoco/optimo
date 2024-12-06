@@ -3,7 +3,7 @@
     "python.testing.unittestArgs": [
         "-v",
         "-s",
-        "optimo/tests",
+        "tests",
         "-p",
         "test_*.py"
     ],    

@@ -8,7 +8,7 @@ root_path = utilities.get_root_path()
 examples_path = os.path.join(root_path, 'examples')
 os.environ['MODELICAPATH'] = os.environ.get('MODELICAPATH', '') + os.pathsep + examples_path
 
-class OptimoExamples(unittest.TestCase, utilities.partialChecks):
+class Test_Optimo_Examples(unittest.TestCase, utilities.partialChecks):
     """Tests the examples of the Optimo package.
          
     """
