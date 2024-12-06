@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: javierarroyo/optimo:0.1.0
-      options: --user root
+      options: --group-add users
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
