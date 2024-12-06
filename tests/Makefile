@@ -47,7 +47,7 @@ pull-optimo:
 	docker tag ${IMG_REGI}:${VERSION} ${IMG_NAME}
 
 test-examples:
-	poetry install && poetry run python3 -m unittest test_examples.Test_Optimo_Examples
+	poetry run python3 -m unittest test_examples.Test_Optimo_Examples
 
 exec-optimo:
 	docker exec \
