@@ -8,6 +8,9 @@ on:
 jobs:
   test-examples:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests
     container:
       image: javierarroyo/optimo:0.1.0
       options: --group-add users
