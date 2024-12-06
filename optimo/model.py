@@ -65,7 +65,10 @@ class OptimoModel:
         return self.dae.get(self.dae.x())
 
     def get_default_u(self):
-        return self.dae.get(self.dae.u())*np.ones((1, self.N+1))
+        if self.dae.u() == []:
+            return np.zeros((1, self.N+1))
+        else:
+            return self.dae.get(self.dae.u())*np.ones((1, self.N+1))
 
     def simulate(self, 
                  x0: np.array=None, 
