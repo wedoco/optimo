@@ -47,6 +47,7 @@ pull-optimo:
 	docker tag ${IMG_REGI}:${VERSION} ${IMG_NAME}
 
 test-examples:
+    poetry cache clear --all pypi && \
 	poetry install && \
 	poetry run python3 -m unittest test_examples.Test_Optimo_Examples
 

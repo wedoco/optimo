@@ -39,4 +39,4 @@ RUN pip install poetry==1.6.1
 ENV PATH="/home/$USER/.local/bin:$PATH" 
 
 # Configure Poetry to create virtual environments inside the project directory
-RUN poetry config virtualenvs.in-project false
+RUN poetry config virtualenvs.in-project true
