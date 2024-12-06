@@ -11,9 +11,13 @@ jobs:
     container:
       image: javierarroyo/optimo:0.1.0
       options: --group-add users
+    env:
+      HOME: /home/developer
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: poetry install
       - name: Test examples
