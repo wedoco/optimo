@@ -47,6 +47,8 @@ pull-optimo:
 	docker tag ${IMG_REGI}:${VERSION} ${IMG_NAME}
 
 test-examples:
+	poetry config virtualenvs.in-project false && \
+	poetry install && \
 	poetry run python3 -m unittest test_examples.Test_Optimo_Examples
 
 exec-optimo:
@@ -59,9 +61,3 @@ test-examples-in-container:
 	make run-optimo-detached
 	make exec-optimo ARGS="make test-examples"
 	make stop-optimo
-
-make install-poetry-and-dependencies:
-	pip install -U pip
-	pip install poetry==1.6.1
-	poetry config virtualenvs.in-project false
-	poetry install
