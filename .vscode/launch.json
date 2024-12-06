@@ -5,7 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Run Current File",
+            "noDebug": true,
+            "request": "launch",
+            "type": "debugpy",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${fileDirname}",
+            "justMyCode": false,
+            // "purpose": ["debug-test"],
+            "env": {"PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"}
+        },
+        {
+            "name": "Debug Current File",
+            "noDebug": false,
             "request": "launch",
             "type": "debugpy",
             "program": "${file}",
