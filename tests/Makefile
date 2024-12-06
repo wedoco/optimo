@@ -20,6 +20,7 @@ run-optimo:
 		--name ${IMG_NAME} \
 		--detach=false \
 		--network=host \
+		--user $(id -u):$(id -g) \
 		-v ${ROOT}:${IMG_HOME}:rw \
 		-w ${IMG_HOME}/tests \
 		--rm -it ${IMG_NAME}
@@ -30,6 +31,7 @@ run-optimo-detached:
 		--name ${IMG_NAME} \
 		--detach=true \
 		--network=host \
+		--user $(id -u):$(id -g) \
 		-v ${ROOT}:${IMG_HOME}:rw \
 		-w ${IMG_HOME}/tests \
 		--rm -it ${IMG_NAME}
