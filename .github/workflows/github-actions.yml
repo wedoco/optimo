@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-      - name: Pull boptestgym image from registry
-        run: make pull-boptestgym
+      - name: Pull optimo image from registry
+        run: make pull-optimo
       - name: Install poetry dependencies
         run: make install-poetry-in-container
       - name: Test examples
