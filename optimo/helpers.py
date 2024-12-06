@@ -1,5 +1,3 @@
-from OMPython import OMCSessionZMQ
-import casadi as ca
 import pandas as pd
 import os
 import numpy as np
@@ -18,11 +16,30 @@ def load_modelica_files(omc, modelica_files=[]):
     # Load needed model files and libraries.
     for f in modelica_files:
         print('Loading {} ...'.format(f))
-        if omc.loadFile(f).startswith('false'):
+        if not os.path.exists(f):
+            f = find_file_in_modelicapath(f)
+        file_loaded = omc.loadFile(f)
+        if file_loaded.startswith('false'):
           raise Exception('Modelica compilation failed: {}'.format(omc.sendExpression('getErrorString()')))
         # omc.sendExpression('loadFile(\"{}\")'.format(f))
 
     print('List of defined Modelica class names: {}'.format(omc.sendExpression("getClassNames()")))
+
+
+def find_file_in_modelicapath(filename):
+    """
+    Find a file in the MODELICAPATH environment variable.
+
+    """
+    modelicapath = os.environ.get('MODELICAPATH', '')
+    directories = modelicapath.split(os.pathsep)
+    
+    for directory in directories:
+        for root, _, files in os.walk(directory):
+            if filename in files:
+                return os.path.abspath(os.path.join(root, filename))
+    
+    return None
 
 def build_model_fmu(omc, mo_class, commandLineOptions=None):
     """
