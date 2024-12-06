@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: javierarroyo/optimo:0.1.0
+      options: --env HOME=$HOME
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
