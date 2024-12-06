@@ -11,19 +11,14 @@ jobs:
     defaults:
       run:
         working-directory: tests
-    container:
-      image: javierarroyo/optimo:0.1.0
-      options: --group-add users
-    env:
-      HOME: /home/developer
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-      - name: Install dependencies
-        run: poetry install
+      - name: Pull boptestgym image from registry
+        run: make pull-boptestgym
+      - name: Install poetry dependencies
+        run: make install-poetry-in-container
       - name: Test examples
-        run: poetry run -m unittest tests.test_examples.Test_Optimo_Examples
+        run: make test-examples-in-container
 
   

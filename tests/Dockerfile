@@ -38,3 +38,6 @@ ENV PATH="/home/$USER/.local/bin:$PATH"
 
 # Configure Poetry to create virtual environments inside the project directory
 RUN poetry config virtualenvs.in-project true
+
+# Add repository directory to PYTHONPATH
+ENV PYTHONPATH ${HOME}/optimo
