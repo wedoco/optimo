@@ -15,7 +15,7 @@ RUN apt update && \
 
 # Install OpenModelica and Modelica libraries
 # Available OMC versions can be found at https://build.openmodelica.org/apt/dists/focal/
-ENV OMC_VERSION 1.24.0~dev-235-gfaa789a-1
+ENV OMC_VERSION 1.25.0~dev-218-gb7eae8a-1
 RUN curl -fsSL http://build.openmodelica.org/apt/openmodelica.asc | gpg --dearmor -o /usr/share/keyrings/openmodelica-keyring.gpg\
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openmodelica-keyring.gpg] https://build.openmodelica.org/apt \
     $(lsb_release -cs) nightly" | tee /etc/apt/sources.list.d/openmodelica.list > /dev/null
