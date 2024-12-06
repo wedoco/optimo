@@ -25,10 +25,12 @@ RUN apt update && apt install --no-install-recommends -y \
     gdb
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
-# Add developer user
+# Add developer user with permissions in the working directory
 ARG USER="developer"
 RUN useradd -ms /bin/bash $USER
 ENV HOME /home/$USER
+RUN mkdir -m 1777 ${HOME}/optimo
+ENV PYTHONPATH ${HOME}/optimo
 USER $USER
 
 # Install Poetry 
@@ -38,6 +40,3 @@ ENV PATH="/home/$USER/.local/bin:$PATH"
 
 # Configure Poetry to create virtual environments inside the project directory
 RUN poetry config virtualenvs.in-project true
-
-# Add repository directory to PYTHONPATH
-ENV PYTHONPATH ${HOME}/optimo
