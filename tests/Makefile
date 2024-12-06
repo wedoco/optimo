@@ -20,7 +20,6 @@ run-optimo:
 		--name ${IMG_NAME} \
 		--detach=false \
 		--network=host \
-		--user $(id -u):$(id -g) \
 		-v ${ROOT}:${IMG_HOME}:rw \
 		-w ${IMG_HOME}/tests \
 		--rm -it ${IMG_NAME}
@@ -31,7 +30,6 @@ run-optimo-detached:
 		--name ${IMG_NAME} \
 		--detach=true \
 		--network=host \
-		--user $(id -u):$(id -g) \
 		-v ${ROOT}:${IMG_HOME}:rw \
 		-w ${IMG_HOME}/tests \
 		--rm -it ${IMG_NAME}
@@ -61,3 +59,9 @@ test-examples-in-container:
 	make run-optimo-detached
 	make exec-optimo ARGS="make test-examples"
 	make stop-optimo
+
+make install-poetry-and-dependencies:
+	pip install -U pip
+	pip install poetry==1.6.1
+	poetry config virtualenvs.in-project false
+	poetry install
