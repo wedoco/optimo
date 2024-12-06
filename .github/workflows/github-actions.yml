@@ -17,6 +17,6 @@ jobs:
       - name: Pull optimo image from registry.
         run: make pull-optimo
       - name: Install poetry dependencies and run tests.
-        run: make test-examples-in-container
+        run: chmod -R o+w . && make test-examples-in-container
 
   
