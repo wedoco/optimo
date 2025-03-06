@@ -1,6 +1,6 @@
 {
     "name":"optimo",
-    "image":"optimo",
+    "image":"javierarroyo/optimo:0.1.0",
     "customizations": {
 		// Configure properties specific to VS Code.
 		"vscode": {
