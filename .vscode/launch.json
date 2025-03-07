@@ -14,7 +14,9 @@
             "cwd": "${fileDirname}",
             "justMyCode": false,
             // "purpose": ["debug-test"],
-            "env": {"PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"}
+            "env": {
+                "MPLBACKEND": "Agg",
+                "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"}
         },
         {
             "name": "Debug Current File",
@@ -26,7 +28,9 @@
             "cwd": "${fileDirname}",
             "justMyCode": false,
             "purpose": ["debug-test"],
-            "env": {"PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"}
+            "env": {
+                "MPLBACKEND": "Agg",
+                "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"}
         }
     ]
 }
