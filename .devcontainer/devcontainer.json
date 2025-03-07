@@ -1,6 +1,9 @@
 {
     "name":"optimo",
     "image":"javierarroyo/optimo:0.1.0",
+	"runArgs": [
+        "--env-file=${localWorkspaceFolder}/.env"
+    ],
     "customizations": {
 		// Configure properties specific to VS Code.
 		"vscode": {

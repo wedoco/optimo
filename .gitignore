@@ -7,3 +7,4 @@
 *.html
 *.libs
 *log
+.env
