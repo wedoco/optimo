@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "optimo"
+name = "wedoco_optimo"
 version = "0.1.0"
 description = "Optimization of Modelica models"
 authors = ["Wedoco <javier.arroyo@wedoco.io>"]

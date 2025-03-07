@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from optimo.model import OptimoModel
+from wedoco_optimo.model import OptimoModel
 
 
 def run_vdp(force_recompile=True, plot=True):

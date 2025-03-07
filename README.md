@@ -28,7 +28,7 @@ Now we use this model for simulation and optimization in a Python script:
 
 ```Python
 import matplotlib.pyplot as plt
-from optimo.model import OptimoModel
+from wedoco_optimo.model import OptimoModel
 
 # Compile and transfer the Modelica model
 mo = OptimoModel()
