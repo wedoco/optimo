@@ -19,4 +19,15 @@ jobs:
       - name: Install poetry dependencies and run tests.
         run: chmod -R o+rwx /home/runner/work && make test-examples-in-container
 
-  
+  build-and-publish-package:
+    needs: test-examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code.
+        uses: actions/checkout@v3
+      - name: Add API token.
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+      - name: Build package.
+        run: poetry build
+      - name: Publish package to PyPI.
+        uses: poetry publish
