@@ -1,6 +1,8 @@
 name: CI of optimo using GitHub Actions
 on:
   push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -30,4 +32,4 @@ jobs:
       - name: Build package.
         run: poetry build
       - name: Publish package to PyPI.
-        uses: poetry publish
+        run: poetry publish
