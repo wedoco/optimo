@@ -38,7 +38,7 @@ class OptimoModel:
             # Change working directory to the specified path
             omc.sendExpression(f'cd("{self.modelica_path}")')
             # Load Modelica files from the specified path
-            load_modelica_files(omc, modelica_files=[mo_file_path], modelica_path=self.modelica_path)
+            load_modelica_files(omc, modelica_files=[mo_file_path])
             # Build FMU in the specified path
             build_model_fmu(omc, model)
 
