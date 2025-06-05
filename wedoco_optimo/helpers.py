@@ -57,14 +57,28 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
         # self.omc.sendExpression('setCommandLineOptions(\"+g=Modelica\")')
         print(omc.sendExpression(exp))
 
-    # Translate model to FMU.
-    fmu_version = 2.0
-    fmu_path = omc.sendExpression('buildModelFMU({0}, version=\"{1}\")'.format(mo_class, fmu_version))
-    flag = omc.sendExpression('getErrorString()')
-    if not fmu_path.endswith('.fmu'): raise Exception(f'FMU generation failed: {flag}')
-    print(f"translateModelFMU warnings:\n{flag}")
-
-    # fmu_path = self.omc.sendExpression('buildModelFMU({0}, version=\"{1}\", fmuType=\"cs\")'.format(mo_class, self.fmu_version))
+    # Save current working directory
+    orig_cwd = os.getcwd()
+    # Use a writable directory for FMU build
+    build_dir = "/tmp"
+    try:
+        os.chdir(build_dir)
+        omc.sendExpression(f'cd("{build_dir}")')
+        fmu_version = 2.0
+        fmu_path = omc.sendExpression('buildModelFMU({0}, version=\"{1}\")'.format(mo_class, fmu_version))
+        flag = omc.sendExpression('getErrorString()')
+        if not fmu_path or not fmu_path.endswith('.fmu'):
+            raise Exception(f'FMU generation failed: {flag}')
+        print(f"translateModelFMU warnings:\n{flag}")
+        # Move FMU to original directory if needed
+        if not os.path.isabs(fmu_path):
+            fmu_path = os.path.join(build_dir, fmu_path)
+        target_fmu_path = os.path.join(orig_cwd, os.path.basename(fmu_path))
+        shutil.move(fmu_path, target_fmu_path)
+        fmu_path = target_fmu_path
+    finally:
+        os.chdir(orig_cwd)
+        omc.sendExpression(f'cd("{orig_cwd}")')
 
     return fmu_path
 
