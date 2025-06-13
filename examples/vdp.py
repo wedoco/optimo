@@ -1,10 +1,11 @@
+import os
 import matplotlib.pyplot as plt
 from wedoco_optimo.model import OptimoModel
 
 
 def run_vdp(force_recompile=True, plot=True):
     # Compile and transfer the Modelica model
-    mo = OptimoModel()
+    mo = OptimoModel(modelica_path=os.path.dirname(os.path.realpath(__file__)))
     mo.transfer_model(model="vdp", force_recompile=force_recompile)
 
     # Simulate

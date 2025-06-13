@@ -10,21 +10,35 @@ import numpy as np
 from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, unpack_fmu, explore_dae, get_dae_results
 
 class OptimoModel:
+    def __init__(self, modelica_path: str):
+        """
+        Initialize the OptimoModel with a specific Modelica path.
+
+        :param modelica_path: Path where Modelica files are located.
+        """
+        self.modelica_path = modelica_path
 
     def transfer_model(self, model: str, force_recompile: bool=True):
 
         # Store the model name
         self.model = model
 
+        # Construct paths for .mo and .fmu files in the specified directory
+        mo_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.mo")))
+        fmu_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.fmu")))
+
         # Compile the FMU if needed
-        if not os.path.exists(f'{self.model}.fmu') or force_recompile:
+        if not os.path.exists(fmu_file_path) or force_recompile:
             omc = OMCSessionZMQ()
-            load_modelica_files(omc, modelica_files=[f'{model}.mo'])
-            build_model_fmu(omc, f'{model}')
-        self.fmu_path = str(Path(f'{model}.fmu').resolve())
+            # Change working directory to the specified path
+            omc.sendExpression(f'cd("{self.modelica_path}")')
+            # Load Modelica files from the specified path
+            load_modelica_files(omc, modelica_files=[mo_file_path])
+            # Build FMU in the specified path
+            build_model_fmu(omc, model)
 
         # Parse FMU to dae object
-        self.dae = ca.DaeBuilder("model", unpack_fmu(self.fmu_path), {"debug": False})
+        self.dae = ca.DaeBuilder("model", unpack_fmu(fmu_file_path), {"debug": False})
         explore_dae(self.dae)
 
         # Extract symbols for states, inputs and outputs
@@ -37,7 +51,7 @@ class OptimoModel:
         self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
 
         # Define the time grid
-        self.define_time_grid(t_horizon=10, N=100, M=1)
+        self.define_time_grid(start_time=0.0, end_time=10.0, dt=0.1)
 
         # Define the simulator
         dae_dict = {}
@@ -48,18 +62,22 @@ class OptimoModel:
         opts["print_stats"] = False
         self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
 
-    def define_time_grid(self, t_horizon: int, N: int, M: int, t_0: int=0):
+    def define_time_grid(self, start_time: float, end_time: float, dt: float):
         """
-        Define the time grid for the simulation and optimization problems
+        Define the time grid for the simulation and optimization problems.
         Args:
-            t_horizon: The total time horizon in seconds
-            N: Number of integration steps in the prediction horizon
-            M: Number of integration steps per control interval
+            start_time: The starting time (float, e.g., 0.0)
+            end_time: The ending time (float, e.g., 10.0)
+            dt: Time interval between points (float, e.g., 0.1)
         """
-        self.t_horizon = t_horizon
-        self.N = N
-        self.M = M
-        self.tgrid = np.asarray([t_horizon / N * k for k in range(N + 1)])
+        self.start_time = start_time
+        self.end_time = end_time
+        self.dt = dt
+        # Use np.arange to ensure the last point is included if possible
+        self.tgrid = np.arange(start_time, end_time + dt, dt)
+        self.N = len(self.tgrid) - 1
+        self.M = 1  # You can make this dynamic as well if needed
+        self.t_horizon = end_time - start_time
 
     def get_default_x0(self):
         return self.dae.get(self.dae.x())
@@ -70,9 +88,15 @@ class OptimoModel:
         else:
             return self.dae.get(self.dae.u())*np.ones((1, self.N+1))
 
-    def simulate(self, 
-                 x0: np.array=None, 
-                 u_sim: np.array=None):
+    def simulate(self, x0: np.array = None, u_sim: np.array = None,
+             start_time: float = None, end_time: float = None, dt: float = None):
+        # Optionally override time grid if parameters are provided
+        if start_time is not None and end_time is not None and dt is not None:
+            self.define_time_grid(start_time=start_time, end_time=end_time, dt=dt)
+            # Re-create the integrator with the new time grid
+            dae_dict = {"x": self.x, "u": self.u, "ode": self.f_xu_xyu(x=self.x, u=self.u)["ode"]}
+            opts = {"print_stats": False}
+            self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
         
         # Get external values if provided. Otherwise use those from the model
         x0   = x0 if x0 is not None else self.get_default_x0()
