@@ -41,11 +41,13 @@ def find_file_in_modelicapath(filename):
     
     return None
 
-def build_model_fmu(omc, mo_class, commandLineOptions=None):
+def build_model_fmu(omc, mo_class, commandLineOptions=None, fmu_file_path=None):
     """
     Compile an FMU from a Modelica model.
 
     :param mo_class: The Modelica class name to be compiled.
+    :param commandLineOptions: Optional command line options for the compilation.
+    :param fmu_file_path: Optional path where the FMU should be saved. If not provided, it will be saved in the current working directory with the name <mo_class>.fmu.
     :return: Full path of the generated FMU.
 
     """
@@ -73,14 +75,14 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
         # Move FMU to original directory if needed
         if not os.path.isabs(fmu_path):
             fmu_path = os.path.join(build_dir, fmu_path)
-        target_fmu_path = os.path.join(orig_cwd, os.path.basename(fmu_path))
-        shutil.move(fmu_path, target_fmu_path)
-        fmu_path = target_fmu_path
+        if not fmu_file_path:
+            fmu_file_path = os.path.join(orig_cwd, os.path.basename(fmu_path))
+        shutil.move(fmu_path, fmu_file_path)
     finally:
         os.chdir(orig_cwd)
         omc.sendExpression(f'cd("{orig_cwd}")')
 
-    return fmu_path
+    return fmu_file_path
 
 def unpack_fmu(fmu_file):
   """
