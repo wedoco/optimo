@@ -62,6 +62,8 @@ class OptimoModel:
         opts["print_stats"] = False
         self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
 
+        return fmu_file_path
+
     def define_time_grid(self, start_time: float, end_time: float, dt: float):
         """
         Define the time grid for the simulation and optimization problems.
