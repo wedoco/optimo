@@ -10,9 +10,7 @@ def load_modelica_files(omc, modelica_files=[]):
 
     :param mo_files: The list of paths to the involved Modelica models and libraries.
 
-    """
-
-        
+    """ 
     # Load needed model files and libraries.
     for f in modelica_files:
         print('Loading {} ...'.format(f))
@@ -77,7 +75,10 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None, fmu_file_path=None):
             fmu_path = os.path.join(build_dir, fmu_path)
         if not fmu_file_path:
             fmu_file_path = os.path.join(orig_cwd, os.path.basename(fmu_path))
-        shutil.move(fmu_path, fmu_file_path)
+        try:
+            shutil.move(fmu_path, fmu_file_path)
+        except (OSError, PermissionError) as e:
+            raise Exception(f'Failed to move FMU from {fmu_path} to {fmu_file_path}: {e}')
     finally:
         os.chdir(orig_cwd)
         omc.sendExpression(f'cd("{orig_cwd}")')
