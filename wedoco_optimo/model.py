@@ -17,7 +17,6 @@ class OptimoModel:
         :param modelica_path: Path where Modelica files are located.
         """
         self.modelica_path = modelica_path
-        self.fmu_path = None
 
     def transfer_model(self, model: str, force_recompile: bool=True):
 
@@ -25,13 +24,9 @@ class OptimoModel:
         self.model = model
 
         # Construct paths for .mo and .fmu files in the specified directory
-        mo_file_path = os.path.join(self.modelica_path, f"{model}.mo")
-        fmu_file_path = os.path.join(self.modelica_path, f"{model}.fmu")
-        
-        # Check if the .mo file exists in the specified path
-        #if not os.path.exists(mo_file_path):
-            #raise FileNotFoundError(f"Model file {mo_file_path} not found.")
-        
+        mo_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.mo")))
+        fmu_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.fmu")))
+
         # Compile the FMU if needed
         if not os.path.exists(fmu_file_path) or force_recompile:
             omc = OMCSessionZMQ()
@@ -42,11 +37,8 @@ class OptimoModel:
             # Build FMU in the specified path
             build_model_fmu(omc, model)
 
-        # Store the FMU path as an absolute path
-        self.fmu_path = str(Path(fmu_file_path).resolve())
-
         # Parse FMU to dae object
-        self.dae = ca.DaeBuilder("model", unpack_fmu(self.fmu_path), {"debug": False})
+        self.dae = ca.DaeBuilder("model", unpack_fmu(fmu_file_path), {"debug": False})
         explore_dae(self.dae)
 
         # Extract symbols for states, inputs and outputs
