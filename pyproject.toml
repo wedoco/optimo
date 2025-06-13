@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wedoco_optimo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Optimization of Modelica models"
 authors = ["Wedoco <javier.arroyo@wedoco.io>"]
 keywords = ["modelica", "casadi", "optimization", "model predictive control"]
