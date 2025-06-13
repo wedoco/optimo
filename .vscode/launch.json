@@ -31,6 +31,40 @@
             "env": {
                 "MPLBACKEND": "Agg",
                 "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"}
+        },
+        {
+            "name": "Python Debugger: Current Test File",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${file}", "-v", "--tb=short"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "MPLBACKEND": "Agg",
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"
+            }
+        },
+        {
+            "name": "Python Debugger: Specific Test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${input:testPath}", "-v", "--tb=short"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "MPLBACKEND": "Agg",
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testPath",
+            "description": "Enter test path (e.g., tests/test_file.py::test_function)",
+            "default": "tests/",
+            "type": "promptString"
         }
     ]
 }
