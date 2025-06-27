@@ -73,13 +73,14 @@ class OptimoModel:
         return self.dae.start(self.dae.x())
 
     def get_default_u(self):
+        u_start = np.array(self.dae.start(self.dae.u()))
         if self.dae.u() == []:
-            return np.zeros((1, self.N+1))
+            return np.zeros((len(u_start), self.N+1))
         else:
-            return self.dae.start(self.dae.u())*np.ones((1, self.N+1))
+            return u_start.reshape(-1, 1)*np.ones((1, self.N+1))
 
     def simulate(self, x0: np.array = None, u_sim: np.array = None,
-             start_time: float = None, end_time: float = None, dt: float = None):
+                 start_time: float = None, end_time: float = None, dt: float = None):
         # Optionally override time grid if parameters are provided
         if start_time is not None and end_time is not None and dt is not None:
             self.define_time_grid(start_time=start_time, end_time=end_time, dt=dt)
