@@ -14,8 +14,8 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install OpenModelica and Modelica libraries
-# Available OMC versions can be found at https://build.openmodelica.org/apt/dists/focal/
-ENV OMC_VERSION 1.25.0~dev-218-gb7eae8a-1
+# Available OMC versions can be found at https://build.openmodelica.org/apt/dists/jammy/nightly/binary-amd64/Packages
+ENV OMC_VERSION 1.26.0~dev-160-gea22787-1
 RUN curl -fsSL http://build.openmodelica.org/apt/openmodelica.asc | gpg --dearmor -o /usr/share/keyrings/openmodelica-keyring.gpg\
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openmodelica-keyring.gpg] https://build.openmodelica.org/apt \
     $(lsb_release -cs) nightly" | tee /etc/apt/sources.list.d/openmodelica.list > /dev/null
@@ -35,7 +35,7 @@ USER $USER
 
 # Install Poetry 
 RUN pip install -U pip
-RUN pip install poetry==1.6.1
+RUN pip install poetry==2.1.3
 ENV PATH="/home/$USER/.local/bin:$PATH" 
 ENV POETRY_CACHE_DIR=${HOME}/optimo
 

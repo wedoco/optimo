@@ -10,30 +10,18 @@ import numpy as np
 from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, unpack_fmu, explore_dae, get_dae_results
 
 class OptimoModel:
-    def __init__(self, modelica_path: str):
-        """
-        Initialize the OptimoModel with a specific Modelica path.
 
-        :param modelica_path: Path where Modelica files are located.
-        """
-        self.modelica_path = modelica_path
-
-    def transfer_model(self, model: str, force_recompile: bool=True):
-
-        # Store the model name
-        self.model = model
-
-        # Construct paths for .mo and .fmu files in the specified directory
-        mo_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.mo")))
-        fmu_file_path = str(Path(os.path.join(self.modelica_path, f"{model}.fmu")))
-
+    def transfer_model(self, model: str, modelica_files=list[str], force_recompile: bool=True):
+        model_name = model.split(".")[-1]
+        fmu_file_path = str(Path(os.path.join(os.getcwd(), f"{model_name}.fmu")))
         # Compile the FMU if needed
         if not os.path.exists(fmu_file_path) or force_recompile:
             omc = OMCSessionZMQ()
             # Change working directory to the specified path
-            omc.sendExpression(f'cd("{self.modelica_path}")')
-            # Load Modelica files from the specified path
-            load_modelica_files(omc, modelica_files=[mo_file_path])
+            omc.sendExpression(f'cd("{os.getcwd()}")')
+            # Load Modelica files from the specified path. Ensure right format.
+            modelica_files = [str(Path(path)) for path in modelica_files]
+            load_modelica_files(omc, modelica_files=modelica_files)
             # Build FMU in the specified path
             build_model_fmu(omc, model)
 
@@ -48,7 +36,7 @@ class OptimoModel:
 
         # Define symbolic function from states and inputs to the system outputs and states
         # The inputs are also returned to read them as they are perceived by the model
-        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "ydef", "u"])
+        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "y", "u"])
 
         # Define the time grid
         self.define_time_grid(start_time=0.0, end_time=10.0, dt=0.1)
@@ -82,13 +70,13 @@ class OptimoModel:
         self.t_horizon = end_time - start_time
 
     def get_default_x0(self):
-        return self.dae.get(self.dae.x())
+        return self.dae.start(self.dae.x())
 
     def get_default_u(self):
         if self.dae.u() == []:
             return np.zeros((1, self.N+1))
         else:
-            return self.dae.get(self.dae.u())*np.ones((1, self.N+1))
+            return self.dae.start(self.dae.u())*np.ones((1, self.N+1))
 
     def simulate(self, x0: np.array = None, u_sim: np.array = None,
              start_time: float = None, end_time: float = None, dt: float = None):
@@ -110,7 +98,7 @@ class OptimoModel:
 
         # Now evaluate the outputs from inputs and computed dynamics
         res_xyu_sim = self.f_xu_xyu(x=x_sim, u=u_sim)
-        y_sim = res_xyu_sim["ydef"].full()
+        y_sim = res_xyu_sim["y"].full()
         u_sim = res_xyu_sim["u"].full()
         
         t0 = 0
@@ -167,7 +155,7 @@ class OptimoModel:
 
         # Formulate objective from provided list of objective terms
         for term in objective_terms:
-            self.ocp.add_objective(self.ocp.integral(self.f_xu_xyu(x=self.x, u=self.u)['ydef'][self.dae.y().index(term)]))
+            self.ocp.add_objective(self.ocp.integral(self.f_xu_xyu(x=self.x, u=self.u)['y'][self.dae.y().index(term)]))
 
         # Set constraints
         for constrained_var in constraints.keys():
@@ -182,7 +170,7 @@ class OptimoModel:
         x_ocp = np.atleast_2d(sol.sample(self.ocp.x, grid="integrator")[1].T)
         u_ocp = np.atleast_2d(sol.sample(self.ocp.u, grid="integrator")[1].T)
         res_xyu_ocp = self.f_xu_xyu(x=x_ocp, u=u_ocp)
-        y_ocp = res_xyu_ocp["ydef"].full()
+        y_ocp = res_xyu_ocp["y"].full()
         u_ocp = res_xyu_ocp["u"].full()
 
         t0 = 0

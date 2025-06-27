@@ -25,7 +25,6 @@ def load_modelica_files(omc, modelica_files=[]):
 
     print('List of defined Modelica class names: {}'.format(omc.sendExpression("getClassNames()")))
 
-
 def find_file_in_modelicapath(filename):
     """
     Find a file in the MODELICAPATH environment variable.
@@ -89,22 +88,22 @@ def explore_dae(dae):
     print(f"\nParameters and initial guesses ({dae.np()}):")
 
     for p_name in dae.p():
-        print(f" * {p_name}: initial guess {dae.get(p_name)}, nominal {dae.nominal(p_name)}")
+        print(f" * {p_name}: initial guess {dae.start(p_name)}, nominal {dae.nominal(p_name)}")
 
     print(f"\nStates and initial values ({dae.nx()}):")
 
     for x_name in dae.x():
-        print(f' * {x_name}: initial value {dae.get(x_name)}, nominal {dae.nominal(x_name)}')
+        print(f' * {x_name}: initial value {dae.start(x_name)}, nominal {dae.nominal(x_name)}')
 
     print(f"\nControls and initial values ({dae.nu()}):")
 
     for u_name in dae.u():
-        print(f' * {u_name}: initial values {dae.get(u_name)}, nominal {dae.nominal(u_name)}')
+        print(f' * {u_name}: initial values {dae.start(u_name)}, nominal {dae.nominal(u_name)}')
 
     print(f"\nOutputs and initial values ({dae.ny()}):")
 
     for y_name in dae.y():
-        print(f' * {y_name}: initial values {dae.get(y_name)}, nominal {dae.nominal(y_name)}')
+        print(f' * {y_name}: initial values {dae.start(y_name)}, nominal {dae.nominal(y_name)}')
 
 def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, u_sim: np.array, t0: int) -> dict:
     """

@@ -5,8 +5,9 @@ from wedoco_optimo.model import OptimoModel
 
 def run_vdp(force_recompile=True, plot=True):
     # Compile and transfer the Modelica model
-    mo = OptimoModel(modelica_path=os.path.dirname(os.path.realpath(__file__)))
-    mo.transfer_model(model="vdp", force_recompile=force_recompile)
+    mo = OptimoModel()
+    model_file = os.path.join(os.path.dirname(__file__), "vdp.mo")
+    mo.transfer_model(model="vdp", modelica_files=[model_file], force_recompile=force_recompile)
 
     # Simulate
     res_sim_df = mo.simulate()

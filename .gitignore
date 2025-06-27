@@ -7,3 +7,6 @@
 *.html
 *.libs
 *log
+*.pyc
+*.whl
+*.tar.gz
