@@ -65,8 +65,8 @@ class OptimoModel:
         self.dt = dt
         # Use np.arange to ensure the last point is included if possible
         self.tgrid = np.arange(start_time, end_time + dt, dt)
-        self.N = len(self.tgrid) - 1
-        self.M = 1  # You can make this dynamic as well if needed
+        self.N = len(self.tgrid) - 1 # Number of control steps
+        self.M = 1 # Number of integration steps per control step
         self.t_horizon = end_time - start_time
 
     def get_default_x0(self):
@@ -107,20 +107,22 @@ class OptimoModel:
 
         return res_df
 
-    def initialize_optimization(self):
+    def initialize_optimization(self, ipopt_options: dict=None):
         # Define rockit ocp problem
         self.ocp = rockit.Ocp(T=self.t_horizon)
 
         # Choose a transcription method
-        # ocp.method(rockit.SingleShooting(N=self.N, M=self.M))
-        # ocp.method(rockit.MultipleShooting(N=self.N, M=self.M))
+        # self.ocp.method(rockit.SingleShooting(N=self.N, M=self.M))
+        # self.ocp.method(rockit.MultipleShooting(N=self.N, M=self.M))
         self.ocp.method(rockit.DirectCollocation(N=self.N, M=self.M))
 
         # Define options and choose a solver for the optimization problem
-        ipopt_options = {
+        ipopt_options_default = {
             "ipopt.max_iter": 500,
             "ipopt.tol": 1e-6
         }
+        ipopt_options = ipopt_options_default | ipopt_options if ipopt_options else ipopt_options_default
+        
         self.ocp.solver("ipopt", ipopt_options)
 
         # Let rockit know that the symbols that are states
@@ -137,11 +139,12 @@ class OptimoModel:
     def define_optimization(self,
                             x0: np.array=None,
                             constraints: dict=None,
-                            objective_terms: list=None):
+                            objective_terms: list=None, 
+                            ipopt_options: dict=None):
         
         # Initialize the optimization problem if not already done. 
         if not hasattr(self, "ocp"):
-            self.initialize_optimization()
+            self.initialize_optimization(ipopt_options=ipopt_options)
 
         # Get external values if provided. Otherwise use those from the model
         x0 = x0 if x0 is not None else self.get_default_x0()

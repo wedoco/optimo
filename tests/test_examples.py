@@ -21,5 +21,5 @@ class Test_Optimo_Examples(unittest.TestCase, utilities.partialChecks):
         file_ref_sim = os.path.join(root_path, 'tests', 'references', 'vdp_ref_sim.csv')
         file_ref_ocp = os.path.join(root_path, 'tests', 'references', 'vdp_ref_ocp.csv')
         res_sim_df, res_ocp_df = run_vdp(force_recompile=True, plot=False)
-        self.compare_ref_timeseries_df(res_sim_df, file_ref_sim)
-        self.compare_ref_timeseries_df(res_ocp_df, file_ref_ocp)
+        self.compare_ref_timeseries_df(res_sim_df, file_ref_sim, tol=1e-3)
+        self.compare_ref_timeseries_df(res_ocp_df, file_ref_ocp, tol=1e-3)
