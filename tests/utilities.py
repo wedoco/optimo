@@ -142,7 +142,7 @@ class partialChecks(object):
     
     """
     
-    def compare_ref_timeseries_df(self, df, ref_filepath):
+    def compare_ref_timeseries_df(self, df, ref_filepath, tol=1e-3):
         """Compare a timeseries dataframe to a reference csv.
         
         Parameters
@@ -151,6 +151,9 @@ class partialChecks(object):
             Test dataframe with "time" as index.
         ref_filepath : str
             Reference file path relative to testing directory.
+        tol : float, optional
+            Tolerance for the maximum error.
+            Default is 1e-3.
             
         Returns
         -------
@@ -180,7 +183,7 @@ class partialChecks(object):
             for key in df.columns:
                 y_test = self.create_test_points(df[key]).to_numpy()
                 y_ref = self.create_test_points(df_ref[key]).to_numpy()
-                results = self.check_trajectory(y_test, y_ref)
+                results = self.check_trajectory(y_test, y_ref, tol=tol)
                 self.assertTrue(results['Pass'], '{0} Key is {1}.'.format(results['Message'],key))
         else:
             # Otherwise, save as reference
@@ -217,7 +220,7 @@ class partialChecks(object):
                 
             return None
         
-    def compare_ref_values_df(self, df, ref_filepath):
+    def compare_ref_values_df(self, df, ref_filepath, tol=1e-3):
         """Compare a values dataframe to a reference csv.
         
         Parameters
@@ -226,7 +229,9 @@ class partialChecks(object):
             Test dataframe with a number of keys as index paired with values.
         ref_filepath : str
             Reference file path relative to testing directory.
-            
+        tol : float, optional
+            Tolerance for the maximum error.
+            Default is 1e-3.
         Returns
         -------
         None
@@ -251,7 +256,7 @@ class partialChecks(object):
             
         return None
     
-    def check_trajectory(self, y_test, y_ref):
+    def check_trajectory(self, y_test, y_ref, tol=1e-3):
         """Check a numeric trajectory against a reference with a tolerance.
         
         Parameters
@@ -260,6 +265,9 @@ class partialChecks(object):
             Test trajectory
         y_ref : list-like of numerics
             Reference trajectory
+        tol : float, optional
+            Tolerance for the maximum error.
+            Default is 1e-3.
             
         Returns
         -------
@@ -273,8 +281,6 @@ class partialChecks(object):
         
         """
     
-        # Set tolerance
-        tol = 1e-3
         # Initialize return dictionary
         result =  {'Pass' : True,
                    'ErrorMax' : None,
