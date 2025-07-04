@@ -107,7 +107,7 @@ class OptimoModel:
 
         return res_df
 
-    def initialize_optimization(self, ipopt_options: dict=None):
+    def initialize_optimization(self, ipopt_options: dict=None, prescribed_inputs: dict=None):
         # Define rockit ocp problem
         self.ocp = rockit.Ocp(T=self.t_horizon)
 
@@ -129,9 +129,12 @@ class OptimoModel:
         for x_name in self.dae.x():
             self.ocp.register_state(self.dae.var(x_name), scale=self.dae.nominal(x_name))
 
-        # Let rockit know the symbols that are controls
+        # Let rockit know which symbols that are prescribed inputs and which are controls
         for u_name in self.dae.u():
-            self.ocp.register_control(self.dae.var(u_name), scale=self.dae.nominal(u_name))
+            if u_name in prescribed_inputs:
+                self.ocp.register_parameter(self.dae.var(u_name), grid="control+")
+            else:
+                self.ocp.register_control(self.dae.var(u_name), scale=self.dae.nominal(u_name))
 
         # Let rockit know what the state dynamics are
         self.ocp.set_der(self.x, self.f_xu_xyu(x=self.x, u=self.u)["ode"])  
@@ -140,11 +143,12 @@ class OptimoModel:
                             x0: np.array=None,
                             constraints: dict=None,
                             objective_terms: list=None, 
-                            ipopt_options: dict=None):
+                            ipopt_options: dict=None,
+                            prescribed_inputs: dict=None):
         
         # Initialize the optimization problem if not already done. 
         if not hasattr(self, "ocp"):
-            self.initialize_optimization(ipopt_options=ipopt_options)
+            self.initialize_optimization(ipopt_options=ipopt_options, prescribed_inputs=prescribed_inputs)
 
         # Get external values if provided. Otherwise use those from the model
         x0 = x0 if x0 is not None else self.get_default_x0()
@@ -162,8 +166,14 @@ class OptimoModel:
             self.ocp.add_objective(self.ocp.integral(self.f_xu_xyu(x=self.x, u=self.u)['y'][self.dae.y().index(term)]))
 
         # Set constraints
-        for constrained_var in constraints.keys():
-            self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]))
+        if constraints:
+            for constrained_var in constraints.keys():
+                self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]))
+
+        # Set prescribed inputs
+        if prescribed_inputs:
+            for prescribed_input in prescribed_inputs.keys():
+                self.ocp.set_value(self.dae.var(prescribed_input), prescribed_inputs[prescribed_input])
 
     def optimize(self):
 
@@ -171,8 +181,8 @@ class OptimoModel:
         sol = self.ocp.solve()
 
         # Extract the results
-        x_ocp = np.atleast_2d(sol.sample(self.ocp.x, grid="integrator")[1].T)
-        u_ocp = np.atleast_2d(sol.sample(self.ocp.u, grid="integrator")[1].T)
+        x_ocp = np.atleast_2d([sol.sample(self.dae.var(v), grid="integrator")[1].T for v in self.dae.x()])
+        u_ocp = np.atleast_2d([sol.sample(self.dae.var(v), grid="control")[1].T for v in self.dae.u()])
         res_xyu_ocp = self.f_xu_xyu(x=x_ocp, u=u_ocp)
         y_ocp = res_xyu_ocp["y"].full()
         u_ocp = res_xyu_ocp["u"].full()

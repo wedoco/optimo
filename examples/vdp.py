@@ -42,9 +42,9 @@ def run_vdp_simulate_with_input(force_recompile=False, plot=True):
     model_file = os.path.join(os.path.dirname(__file__), "vdp.mo")
     mo.transfer_model(model="vdp", modelica_files=[model_file], force_recompile=force_recompile)
 
-    # Simulate
-    u_sim = np.sin(mo.tgrid)
-    res_sim_df = mo.simulate(u_sim=u_sim)
+    # Simulate with an input trajectory
+    u_traj = np.sin(mo.tgrid)
+    res_sim_df = mo.simulate(u_sim=u_traj)
 
     # Plot 
     if plot:
@@ -55,6 +55,31 @@ def run_vdp_simulate_with_input(force_recompile=False, plot=True):
         plt.show()
 
     return res_sim_df
+
+
+def run_vdp_optimize_with_input(force_recompile=False, plot=True):
+    # Compile and transfer the Modelica model
+    mo = OptimoModel()
+    model_file = os.path.join(os.path.dirname(__file__), "vdp_prescribed_input.mo")
+    mo.transfer_model(model="vdpPrescribedInput", modelica_files=[model_file], force_recompile=force_recompile)
+
+    # Optimize with an input trajectory
+    u_traj = np.sin(mo.tgrid) 
+    mo.define_optimization(constraints={"u":(-1, 0.75)}, 
+                           objective_terms=["objectiveIntegrand"],
+                           prescribed_inputs={"u_prescribed": u_traj})
+    res_ocp_df = mo.optimize()
+
+    # Plot 
+    if plot:
+        _, axs = plt.subplots(3, 1)
+        res_ocp_df[["x1","x2"]].plot(ax=axs[0], title="States", legend=True)
+        res_ocp_df["objectiveIntegrand"].plot(ax=axs[1], title="Objective", legend=True)
+        res_ocp_df["u"].plot(ax=axs[2], title="Inputs", legend=True)
+        res_ocp_df["u_prescribed"].plot(ax=axs[2], legend=True)
+        plt.show()
+
+    return res_ocp_df
 
 if __name__ == "__main__":
     run_vdp()
