@@ -91,14 +91,14 @@ class OptimoModel:
         
         # Get external values if provided. Otherwise use those from the model
         x0   = x0 if x0 is not None else self.get_default_x0()
-        u_sim = u_sim if u_sim is not None else self.get_default_u()
+        u_sim = np.atleast_2d(u_sim) if u_sim is not None else self.get_default_u()
 
-        # Simuilate the model dynamics
+        # Simulate the model dynamics
         res_x_sim = self.f_sim(x0=x0, u=u_sim)
         x_sim = res_x_sim["xf"].full()
 
         # Now evaluate the outputs from inputs and computed dynamics
-        res_xyu_sim = self.f_xu_xyu(x=x_sim, u=u_sim.reshape(1,-1))
+        res_xyu_sim = self.f_xu_xyu(x=x_sim, u=u_sim)
         y_sim = res_xyu_sim["y"].full()
         u_sim = res_xyu_sim["u"].full()
         
