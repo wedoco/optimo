@@ -131,7 +131,7 @@ class OptimoModel:
 
         # Let rockit know which symbols that are prescribed inputs and which are controls
         for u_name in self.dae.u():
-            if u_name in prescribed_inputs:
+            if prescribed_inputs and u_name in prescribed_inputs:
                 self.ocp.register_parameter(self.dae.var(u_name), grid="control+")
             else:
                 self.ocp.register_control(self.dae.var(u_name), scale=self.dae.nominal(u_name))
