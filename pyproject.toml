@@ -21,7 +21,7 @@ rockit-meco = "^0.6.6"
 fmpy = "^0.3.19"
 plotly = "^5.22.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pre-commit = "^3.0.0"
 flake8 = "^7.0.0"
 black = "^23.0.0"
