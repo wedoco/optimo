@@ -70,7 +70,7 @@ class OptimoModel:
         self.t_horizon = end_time - start_time
 
     def get_default_x0(self):
-        return self.dae.start(self.dae.x())
+        return {x_name: self.dae.start(x_name) for x_name in self.dae.x()}
 
     def get_default_u(self):
         u_start = np.array(self.dae.start(self.dae.u()))
@@ -79,7 +79,7 @@ class OptimoModel:
         else:
             return u_start.reshape(-1, 1)*np.ones((1, self.N+1))
 
-    def simulate(self, x0: np.array = None, u_sim: np.array = None,
+    def simulate(self, x0: dict = None, u_sim: np.array = None,
                  start_time: float = None, end_time: float = None, dt: float = None):
         # Optionally override time grid if parameters are provided
         if start_time is not None and end_time is not None and dt is not None:
@@ -90,7 +90,9 @@ class OptimoModel:
             self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
         
         # Get external values if provided. Otherwise use those from the model
-        x0   = x0 if x0 is not None else self.get_default_x0()
+        x0 = x0 if x0 is not None else self.get_default_x0()
+        # Convert x0 to a numpy array as required by casadi
+        x0 = np.atleast_2d([x0[name] for name in self.dae.x()]) 
         u_sim = np.atleast_2d(u_sim) if u_sim is not None else self.get_default_u()
 
         # Simulate the model dynamics
@@ -154,8 +156,12 @@ class OptimoModel:
         x0 = x0 if x0 is not None else self.get_default_x0()
 
         # Set initial state values
-        for i, x_name in enumerate(self.dae.x()):
-            self.ocp.subject_to(self.ocp.at_t0(self.dae.var(x_name)) == x0[i])
+        for x_name in self.dae.x():
+            self.ocp.subject_to(self.ocp.at_t0(self.dae.var(x_name)) == x0[x_name])
+
+        # Set the initial guess based on the initial state values
+        for x_name in self.dae.x():
+            self.ocp.set_initial(self.dae.var(x_name), x0[x_name])
 
         # Set initial time
         t0 = 0
