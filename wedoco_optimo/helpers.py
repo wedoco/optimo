@@ -88,22 +88,22 @@ def explore_dae(dae):
     print(f"\nParameters and initial guesses ({dae.np()}):")
 
     for p_name in dae.p():
-        print(f" * {p_name}: initial guess {dae.start(p_name)}, nominal {dae.nominal(p_name)}")
+        print(f" * {p_name}: initial guess {dae.start(p_name)}, minimum {dae.min(p_name)}, maximum {dae.max(p_name)}, nominal {dae.nominal(p_name)}")
 
     print(f"\nStates and initial values ({dae.nx()}):")
 
     for x_name in dae.x():
-        print(f' * {x_name}: initial value {dae.start(x_name)}, nominal {dae.nominal(x_name)}')
+        print(f' * {x_name}: initial value {dae.start(x_name)}, minimum {dae.min(x_name)}, maximum {dae.max(x_name)}, nominal {dae.nominal(x_name)}')
 
     print(f"\nControls and initial values ({dae.nu()}):")
 
     for u_name in dae.u():
-        print(f' * {u_name}: initial values {dae.start(u_name)}, nominal {dae.nominal(u_name)}')
+        print(f' * {u_name}: initial values {dae.start(u_name)}, minimum {dae.min(u_name)}, maximum {dae.max(u_name)}, nominal {dae.nominal(u_name)}')
 
     print(f"\nOutputs and initial values ({dae.ny()}):")
 
     for y_name in dae.y():
-        print(f' * {y_name}: initial values {dae.start(y_name)}, nominal {dae.nominal(y_name)}')
+        print(f' * {y_name}: initial values {dae.start(y_name)}, minimum {dae.min(y_name)}, maximum {dae.max(y_name)}, nominal {dae.nominal(y_name)}')
 
 def get_dae_results(tgrid, dae, x_sim: np.array, y_sim: np.array, u_sim: np.array, t0: int) -> dict:
     """
