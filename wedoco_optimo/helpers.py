@@ -58,6 +58,9 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
 
     # Translate model to FMU.
     fmu_version = 2.0
+    # The following actually enables directional derivatives
+    omc.sendExpression('setDebugFlags("-disableDirectionalDerivatives")')  
+    # Compile the FMU
     fmu_path = omc.sendExpression('buildModelFMU({0}, version=\"{1}\")'.format(mo_class, fmu_version))
     flag = omc.sendExpression('getErrorString()')
     if not fmu_path.endswith('.fmu'): raise Exception(f'FMU generation failed: {flag}')
