@@ -7,7 +7,7 @@ import rockit
 import os
 import numpy as np
 
-from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, unpack_fmu, explore_dae, get_dae_results
+from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, explore_dae, get_dae_results
 
 class OptimoModel:
 
@@ -26,7 +26,7 @@ class OptimoModel:
             build_model_fmu(omc, model)
 
         # Parse FMU to dae object
-        self.dae = ca.DaeBuilder("model", unpack_fmu(fmu_file_path), {"debug": False})
+        self.dae = ca.DaeBuilder("model", fmu_file_path, {"debug": False})
         explore_dae(self.dae)
 
         # Extract symbols for states, inputs and outputs

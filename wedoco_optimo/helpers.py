@@ -67,23 +67,6 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
 
     return fmu_path
 
-def unpack_fmu(fmu_file):
-  """
-  Unpack the contents of an FMU file
-  """
-  # To create a directory, strip the .fmu ending from the fmu_file and add a timestamp
-  from datetime import datetime
-  suffix = datetime.now().strftime("_%Y-%m-%d_%H-%M-%S")
-  unpacked_fmu = os.path.join(os.getcwd(),fmu_file[:fmu_file.find('.')] + suffix)
-  # Unzip
-  import zipfile
-  with zipfile.ZipFile(fmu_file, 'r') as zip_ref: zip_ref.extractall(unpacked_fmu)
-  print(f'Unpacked {fmu_file} into {unpacked_fmu}')
-  return unpacked_fmu
-
-def cleanup_fmu(unpacked_fmu):
-  shutil.rmtree(unpacked_fmu)
-
 def explore_dae(dae):
     print(f"\nParameters and initial guesses ({dae.np()}):")
 
