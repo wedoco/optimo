@@ -52,21 +52,22 @@ class OptimoModel:
 
         return fmu_file_path
 
-    def define_time_grid(self, start_time: float, end_time: float, dt: float):
+    def define_time_grid(self, start_time: float, end_time: float, dt: float, M: int=1):
         """
         Define the time grid for the simulation and optimization problems.
         Args:
             start_time: The starting time (float, e.g., 0.0)
             end_time: The ending time (float, e.g., 10.0)
             dt: Time interval between points (float, e.g., 0.1)
+            M: Number of time steps per control step (int, default=1)
         """
         self.start_time = start_time
         self.end_time = end_time
         self.dt = dt
+        self.M = M 
         # Use np.arange to ensure the last point is included if possible
         self.tgrid = np.arange(start_time, end_time + dt, dt)
         self.N = len(self.tgrid) - 1 # Number of control steps
-        self.M = 1 # Number of integration steps per control step
         self.t_horizon = end_time - start_time
 
     def get_default_x0(self):
@@ -187,13 +188,14 @@ class OptimoModel:
         sol = self.ocp.solve()
 
         # Extract the results
-        x_ocp = np.atleast_2d([sol.sample(self.dae.var(v), grid="integrator")[1].T for v in self.dae.x()])
+        t_ocp = sol.sample(self.dae.var(self.dae.u()[0]), grid="control")[0].T
+        x_ocp = np.atleast_2d([sol.sample(self.dae.var(v), grid="control")[1].T for v in self.dae.x()])
         u_ocp = np.atleast_2d([sol.sample(self.dae.var(v), grid="control")[1].T for v in self.dae.u()])
         res_xyu_ocp = self.f_xu_xyu(x=x_ocp, u=u_ocp)
         y_ocp = res_xyu_ocp["y"].full()
         u_ocp = res_xyu_ocp["u"].full()
 
         t0 = 0
-        res_df = get_dae_results(self.tgrid, self.dae, x_ocp, y_ocp, u_ocp, t0)
+        res_df = get_dae_results(t_ocp, self.dae, x_ocp, y_ocp, u_ocp, t0)
 
         return res_df
