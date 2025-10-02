@@ -1,6 +1,6 @@
 {
     "name":"optimo",
-    "image":"javierarroyo/optimo:0.1.0",
+    "image":"javierarroyo/optimo:0.2.0",
 	"runArgs": [
         "--env-file=${localWorkspaceFolder}/../Secrets/.env"
     ],
