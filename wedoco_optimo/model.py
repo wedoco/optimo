@@ -11,7 +11,7 @@ from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, explore_
 
 class OptimoModel:
 
-    def transfer_model(self, model: str, modelica_files=list[str], force_recompile: bool=True):
+    def transfer_model(self, model: str, modelica_files=list[str], force_recompile: bool=True, enable_directional_derivatives: bool=True) -> str:
         model_name = model.split(".")[-1]
         fmu_file_path = str(Path(os.path.join(os.getcwd(), f"{model_name}.fmu")))
         # Compile the FMU if needed
@@ -23,7 +23,7 @@ class OptimoModel:
             modelica_files = [str(Path(path)) for path in modelica_files]
             load_modelica_files(omc, modelica_files=modelica_files)
             # Build FMU in the specified path
-            build_model_fmu(omc, model)
+            build_model_fmu(omc, model, enable_directional_derivatives=enable_directional_derivatives)
 
         # Parse FMU to dae object
         self.dae = ca.DaeBuilder("model", fmu_file_path, {"debug": False})

@@ -40,7 +40,7 @@ def find_file_in_modelicapath(filename):
     
     return None
 
-def build_model_fmu(omc, mo_class, commandLineOptions=None):
+def build_model_fmu(omc, mo_class, commandLineOptions=None, enable_directional_derivatives=True):
     """
     Compile an FMU from a Modelica model.
 
@@ -60,7 +60,8 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
     fmu_version = 2.0
     # See the following link for options: https://github.com/casadi/fmu_compiler/blob/cross/generate_fmu.py
     # The following actually enables directional derivatives
-    omc.sendExpression('setDebugFlags("-disableDirectionalDerivatives")')  
+    if enable_directional_derivatives:
+        omc.sendExpression('setDebugFlags("-disableDirectionalDerivatives")')  
     # Compile the FMU
     fmu_path = omc.sendExpression('buildModelFMU({0}, version=\"{1}\")'.format(mo_class, fmu_version))
     flag = omc.sendExpression('getErrorString()')
