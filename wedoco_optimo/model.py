@@ -36,7 +36,7 @@ class OptimoModel:
 
         # Define symbolic function from states and inputs to the system outputs and states
         # The inputs are also returned to read them as they are perceived by the model
-        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "y", "u"], {"new_forward": False})
+        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "y", "u"])
 
         # Define the time grid
         self.define_time_grid(start_time=0.0, end_time=10.0, dt=0.1)
