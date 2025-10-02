@@ -58,6 +58,7 @@ def build_model_fmu(omc, mo_class, commandLineOptions=None):
 
     # Translate model to FMU.
     fmu_version = 2.0
+    # See the following link for options: https://github.com/casadi/fmu_compiler/blob/cross/generate_fmu.py
     # The following actually enables directional derivatives
     omc.sendExpression('setDebugFlags("-disableDirectionalDerivatives")')  
     # Compile the FMU
