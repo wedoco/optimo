@@ -144,6 +144,7 @@ class OptimoModel:
 
     def define_optimization(self,
                             x0: np.array=None,
+                            initial_guess: dict=None,
                             constraints: dict=None,
                             objective_terms: list=None, 
                             ipopt_options: dict=None,
@@ -163,6 +164,11 @@ class OptimoModel:
         # Set the initial guess based on the initial state values
         for x_name in self.dae.x():
             self.ocp.set_initial(self.dae.var(x_name), x0[x_name])
+
+        # Set the initial guess for other provided variables
+        if initial_guess is not None:
+            for v_name in initial_guess:
+                self.ocp.set_initial(self.dae.var(v_name), initial_guess[v_name])
 
         # Set initial time
         t0 = 0
