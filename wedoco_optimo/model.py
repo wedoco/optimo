@@ -11,6 +11,53 @@ from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, explore_
 
 class OptimoModel:
 
+    def check_model(self, model: str, modelica_files=list[str], pedantic: bool=False):
+        omc = OMCSessionZMQ()
+        # Change working directory to the specified path
+        cwd_result = omc.sendExpression(f'cd("{os.getcwd()}")')
+        print(f"Working directory: {cwd_result}")
+        
+        # Enable pedantic checking if requested
+        if pedantic:
+            print("Enabling strict checking...")
+            # Enable various checking flags
+            omc.sendExpression('setCommandLineOptions("--showErrorMessages")')
+            omc.sendExpression('setCommandLineOptions("+d=initialization")')
+        
+        # Load Modelica files from the specified path. Ensure right format.
+        modelica_files = [str(Path(path)) for path in modelica_files]
+        load_modelica_files(omc, modelica_files=modelica_files)
+        
+        # Check the model
+        print(f"\nChecking model: {model}")
+        check_result = omc.sendExpression(f'checkModel({model})')
+        
+        # Get error messages
+        error_string = omc.sendExpression('getErrorString()')
+        
+        print("\n" + "="*80)
+        print(f"Model Check Results for: {model}")
+        print("="*80)
+        print("\nCheck Result:")
+        print(check_result)
+        
+        if error_string and error_string.strip() not in ['""', '']:
+            print("\nErrors/Warnings:")
+            print(error_string)
+        
+        print("="*80 + "\n")
+        
+        return {
+            "check_result": check_result,
+            "errors": error_string
+        }
+        print("\n" + "="*80)
+        print(f"Model Check Results for: {model}")
+        print("="*80)
+        print(check_result)
+        print("="*80 + "\n")
+        return check_result
+
     def transfer_model(self, model: str, modelica_files=list[str], force_recompile: bool=True, enable_directional_derivatives: bool=True) -> str:
         model_name = model.split(".")[-1]
         fmu_file_path = str(Path(os.path.join(os.getcwd(), f"{model_name}.fmu")))
