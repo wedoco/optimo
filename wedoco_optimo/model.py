@@ -81,23 +81,47 @@ class OptimoModel:
         self.u = ca.vcat([self.dae.var(name) for name in self.dae.u()])
         self.y = ca.vcat([self.dae.var(name) for name in self.dae.y()])
 
-        # Define symbolic function from states and inputs to the system outputs and states
-        # The inputs are also returned to read them as they are perceived by the model
-        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "y", "u"])
+        # Create the symbolic functions and integrator
+        self._create_functions()
 
         # Define the time grid
         self.define_time_grid(start_time=0.0, end_time=10.0, dt=0.1)
 
-        # Define the simulator
-        dae_dict = {}
-        dae_dict["x"] = self.x
-        dae_dict["u"] = self.u
-        dae_dict["ode"]  = self.f_xu_xyu(x=self.x, u=self.u)["ode"]
-        opts = {}
-        opts["print_stats"] = False
-        self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
-
         return fmu_file_path
+
+    def _create_functions(self):
+        """
+        Create CasADi symbolic functions and integrator.
+        This is called internally when the model is loaded or when parameters are changed.
+        """
+        # Define symbolic function from states and inputs to the system outputs and states
+        # The inputs are also returned to read them as they are perceived by the model
+        self.f_xu_xyu = self.dae.create("f_xu_xyu", ["x", "u"], ["ode", "y", "u"])
+
+        # Create the simulator if time grid is defined
+        if hasattr(self, 'tgrid'):
+            dae_dict = {}
+            dae_dict["x"] = self.x
+            dae_dict["u"] = self.u
+            dae_dict["ode"]  = self.f_xu_xyu(x=self.x, u=self.u)["ode"]
+            opts = {}
+            opts["print_stats"] = False
+            self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
+
+    def set_parameter_values(self, parameters: dict):
+        """
+        Set parameter values in the DAE and recreate CasADi functions.
+        
+        Args:
+            parameters: Dictionary of parameter names and values to set
+                       Example: {'param1': value1, 'param2': value2}
+        """
+        # Set each parameter value in the DAE
+        for param_name, param_value in parameters.items():
+            self.dae.set(param_name, param_value)
+        
+        # Recreate the CasADi functions with new parameter values
+        self._create_functions()
 
     def define_time_grid(self, start_time: float, end_time: float, dt: float, M: int=1):
         """
@@ -126,6 +150,9 @@ class OptimoModel:
             return np.zeros((len(u_start), self.N+1))
         else:
             return u_start.reshape(-1, 1)*np.ones((1, self.N+1))
+    
+    def get_default_p(self):
+        return {p_name: self.dae.start(p_name) for p_name in self.dae.p()}
 
     def simulate(self, x0: dict = None, u_sim: np.array = None,
                  start_time: float = None, end_time: float = None, dt: float = None):
@@ -133,9 +160,7 @@ class OptimoModel:
         if start_time is not None and end_time is not None and dt is not None:
             self.define_time_grid(start_time=start_time, end_time=end_time, dt=dt)
             # Re-create the integrator with the new time grid
-            dae_dict = {"x": self.x, "u": self.u, "ode": self.f_xu_xyu(x=self.x, u=self.u)["ode"]}
-            opts = {"print_stats": False}
-            self.f_sim = ca.integrator("simulator", "cvodes", dae_dict, 0, self.tgrid, opts)
+            self._create_functions()
         
         # Get external values if provided. Otherwise use those from the model
         x0 = x0 if x0 is not None else self.get_default_x0()
