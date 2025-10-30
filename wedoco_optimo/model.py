@@ -263,7 +263,11 @@ class OptimoModel:
     def optimize(self):
 
         # Solve the optimization problem
-        sol = self.ocp.solve()
+        try:
+            sol = self.ocp.solve()
+        except Exception as e:
+            print(f"Optimization did not converge: {e}")
+            sol = self.ocp.non_converged_solution
 
         # Extract the results
         t_ocp = sol.sample(self.dae.var(self.dae.u()[0]), grid="control")[0].T
