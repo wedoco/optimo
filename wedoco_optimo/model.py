@@ -207,12 +207,14 @@ class OptimoModel:
         # Let rockit know which symbols that are prescribed inputs and which are controls
         for u_name in self.dae.u():
             if prescribed_inputs and u_name in prescribed_inputs:
-                self.ocp.register_parameter(self.dae.var(u_name), grid="control+")
+                self.ocp.register_parameter(self.dae.var(u_name), grid="control+", scale=self.dae.nominal(u_name))
             else:
                 self.ocp.register_control(self.dae.var(u_name), scale=self.dae.nominal(u_name))
 
         # Let rockit know what the state dynamics are
-        self.ocp.set_der(self.x, self.f_xu_xyu(x=self.x, u=self.u)["ode"])  
+        derivatives = self.f_xu_xyu(x=self.x, u=self.u)["ode"]
+        for idx, x_name in enumerate(self.dae.x()):
+            self.ocp.set_der(self.dae.var(x_name), derivatives[idx], scale=self.dae.nominal(x_name))
 
     def define_optimization(self,
                             x0: np.array=None,
@@ -234,7 +236,7 @@ class OptimoModel:
 
         # Set initial state values
         for x_name in self.dae.x():
-            self.ocp.subject_to(self.ocp.at_t0(self.dae.var(x_name)) == x0[x_name])
+            self.ocp.subject_to(self.ocp.at_t0(self.dae.var(x_name)) == x0[x_name], scale=self.dae.nominal(x_name))
 
         # Set the initial guess based on the initial state values
         for x_name in self.dae.x():
