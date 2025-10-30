@@ -222,6 +222,9 @@ class OptimoModel:
                             ipopt_options: dict=None,
                             prescribed_inputs: dict=None):
         
+        # Assign objective terms 
+        self.objective_terms = objective_terms if objective_terms is not None else []
+
         # Initialize the optimization problem if not already done. 
         if not hasattr(self, "ocp"):
             self.initialize_optimization(ipopt_options=ipopt_options, prescribed_inputs=prescribed_inputs)
@@ -247,7 +250,7 @@ class OptimoModel:
         self.ocp.set_t0(0)
 
         # Formulate objective from provided list of objective terms
-        for term in objective_terms:
+        for term in self.objective_terms:
             self.ocp.add_objective(self.ocp.integral(self.f_xu_xyu(x=self.x, u=self.u)['y'][self.dae.y().index(term)]))
 
         # Set constraints
@@ -260,7 +263,7 @@ class OptimoModel:
             for prescribed_input in prescribed_inputs.keys():
                 self.ocp.set_value(self.dae.var(prescribed_input), prescribed_inputs[prescribed_input])
 
-    def optimize(self):
+    def optimize(self, calculate_objective_terms_integrals: bool=True):
 
         # Solve the optimization problem
         try:
@@ -278,6 +281,18 @@ class OptimoModel:
         u_ocp = res_xyu_ocp["u"].full()
 
         t0 = 0
+
         res_df = get_dae_results(t_ocp, self.dae, x_ocp, y_ocp, u_ocp, t0)
+
+        if calculate_objective_terms_integrals:
+            # Calculate the cumulative integrated objective terms over the horizon
+            for term in self.objective_terms:
+                term_index = self.dae.y().index(term)
+                term_values = y_ocp[term_index, :]
+                dt_array = np.diff(t_ocp, prepend=t0)
+                # Calculate cumulative integral (cumulative sum of term_values * dt_array)
+                integral_array = np.cumsum(term_values * dt_array)
+                # Add the integrated term to the results as a new variable
+                res_df[f"{term}Int"] = integral_array
 
         return res_df
