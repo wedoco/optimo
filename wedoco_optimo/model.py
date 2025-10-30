@@ -258,7 +258,7 @@ class OptimoModel:
         # Set constraints
         if constraints:
             for constrained_var in constraints.keys():
-                self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]))
+                self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]), scale=self.dae.nominal(constrained_var))
 
         # Set prescribed inputs
         if prescribed_inputs:
