@@ -24,7 +24,7 @@ def run_vdp(force_recompile=True, plot=True):
     # Optimize 
     mo.define_optimization(constraints={"u":(-1, 0.75)}, 
                            objective_terms=["objectiveIntegrand"])
-    res_ocp_df = mo.optimize()
+    res_ocp_df = mo.optimize(calculate_objective_terms_integrals=False)
 
     # Plot 
     if plot:
@@ -68,7 +68,7 @@ def run_vdp_optimize_with_input(force_recompile=False, plot=True):
     mo.define_optimization(constraints={"u":(-1, 0.75)}, 
                            objective_terms=["objectiveIntegrand"],
                            prescribed_inputs={"u_prescribed": u_traj})
-    res_ocp_df = mo.optimize()
+    res_ocp_df = mo.optimize(calculate_objective_terms_integrals=False)
 
     # Plot 
     if plot:

@@ -81,11 +81,11 @@ class OptimoModel:
         self.u = ca.vcat([self.dae.var(name) for name in self.dae.u()])
         self.y = ca.vcat([self.dae.var(name) for name in self.dae.y()])
 
-        # Create the symbolic functions and integrator
-        self._create_functions()
-
         # Define the time grid
         self.define_time_grid(start_time=0.0, end_time=10.0, dt=0.1)
+
+        # Create the symbolic functions and integrator
+        self._create_functions()
 
         return fmu_file_path
 
