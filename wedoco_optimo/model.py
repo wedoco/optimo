@@ -1,76 +1,202 @@
 import casadi as ca
 import os
-from OMPython import OMCSessionZMQ
 from pathlib import Path
-import casadi as ca
 import rockit
-import os
 import numpy as np
+import glob
+import shutil
+import subprocess
+import tempfile
+import time
 
-from wedoco_optimo.helpers import load_modelica_files, build_model_fmu, explore_dae, get_dae_results
+from wedoco_optimo.helpers import explore_dae, get_dae_results
 
 class OptimoModel:
 
     def check_model(self, model: str, modelica_files=list[str], pedantic: bool=False):
-        omc = OMCSessionZMQ()
-        # Change working directory to the specified path
-        cwd_result = omc.sendExpression(f'cd("{os.getcwd()}")')
-        print(f"Working directory: {cwd_result}")
+        """
+        Check a Modelica model using command-line omc (avoids ZMQ hanging issues).
         
-        # Enable pedantic checking if requested
-        if pedantic:
-            print("Enabling strict checking...")
-            # Enable various checking flags
-            omc.sendExpression('setCommandLineOptions("--showErrorMessages")')
-            omc.sendExpression('setCommandLineOptions("+d=initialization")')
+        Args:
+            model: The Modelica class name to check
+            modelica_files: List of Modelica files to load
+            pedantic: Enable strict checking
         
-        # Load Modelica files from the specified path. Ensure right format.
+        Returns:
+            Dictionary with check_result and errors
+        """
+        # Ensure modelica files are in the right format
         modelica_files = [str(Path(path)) for path in modelica_files]
-        load_modelica_files(omc, modelica_files=modelica_files)
         
-        # Check the model
-        print(f"\nChecking model: {model}")
-        check_result = omc.sendExpression(f'checkModel({model})')
+        # Create .mos script for model checking
+        mos_script = tempfile.NamedTemporaryFile(mode='w', suffix='.mos', delete=False, dir=os.getcwd())
         
-        # Get error messages
-        error_string = omc.sendExpression('getErrorString()')
-        
-        print("\n" + "="*80)
-        print(f"Model Check Results for: {model}")
-        print("="*80)
-        print("\nCheck Result:")
-        print(check_result)
-        
-        if error_string and error_string.strip() not in ['""', '']:
-            print("\nErrors/Warnings:")
-            print(error_string)
-        
-        print("="*80 + "\n")
-        
-        return {
-            "check_result": check_result,
-            "errors": error_string
-        }
-        print("\n" + "="*80)
-        print(f"Model Check Results for: {model}")
-        print("="*80)
-        print(check_result)
-        print("="*80 + "\n")
-        return check_result
+        try:
+            # Write checking script
+            mos_script.write(f'cd("{os.getcwd()}");\n')
+            mos_script.write(f'print("Working directory: " + cd() + "\\n");\n')
+            
+            # Load Modelica packages
+            for mf in modelica_files:
+                mos_script.write(f'print("Loading {os.path.basename(mf)}...\\n");\n')
+                mos_script.write(f'loadFile("{mf}");\n')
+            
+            mos_script.write('print("Loaded: " + String(getClassNames()) + "\\n");\n')
+            
+            # Enable pedantic checking if requested
+            if pedantic:
+                mos_script.write('setCommandLineOptions("--showErrorMessages");\n')
+                mos_script.write('setCommandLineOptions("+d=initialization");\n')
+            
+            # Check the model
+            mos_script.write(f'print("\\nChecking model: {model}\\n");\n')
+            mos_script.write(f'check_result := checkModel({model});\n')
+            mos_script.write('print("\\n" + "=" * 80 + "\\n");\n')
+            mos_script.write('print("Check Result:\\n");\n')
+            mos_script.write('print(check_result + "\\n");\n')
+            mos_script.write('print("\\nMessages:\\n");\n')
+            mos_script.write('print(getErrorString() + "\\n");\n')
+            mos_script.write('print("=" * 80 + "\\n");\n')
+            mos_script.close()
+            
+            print(f"🔍 Checking model: {model}")
+            
+            # Run omc without timeout (model checking is usually fast)
+            result = subprocess.run(
+                ['omc', mos_script.name],
+                cwd=os.getcwd(),
+                capture_output=True,
+                text=True,
+                timeout=None  # No timeout for checking
+            )
+            
+            # Parse and display output
+            check_result = ""
+            error_string = ""
+            in_check_result = False
+            in_messages = False
+            
+            for line in result.stdout.split('\n'):
+                if line.strip():
+                    print(f"   {line}")
+                    
+                    if "Check Result:" in line:
+                        in_check_result = True
+                        in_messages = False
+                    elif "Messages:" in line:
+                        in_check_result = False
+                        in_messages = True
+                    elif in_check_result and not line.startswith("="):
+                        check_result += line + "\n"
+                    elif in_messages and not line.startswith("="):
+                        error_string += line + "\n"
+            
+            return {
+                "check_result": check_result.strip(),
+                "errors": error_string.strip()
+            }
+            
+        except subprocess.TimeoutExpired:
+            raise Exception(f'Model check timed out')
+        finally:
+            try:
+                os.unlink(mos_script.name)
+            except:
+                pass
 
     def transfer_model(self, model: str, modelica_files=list[str], force_recompile: bool=True, enable_directional_derivatives: bool=True) -> str:
+        """
+        Compile and transfer a Modelica model to FMU using command-line omc.
+        Avoids OMCSessionZMQ which has hanging issues with buildModelFMU.
+        
+        Args:
+            model: The Modelica class name to compile
+            modelica_files: List of Modelica files to load
+            force_recompile: Force recompilation even if FMU exists
+            enable_directional_derivatives: Enable directional derivatives in FMU
+        
+        Returns:
+            Path to the compiled FMU file
+        """
         model_name = model.split(".")[-1]
         fmu_file_path = str(Path(os.path.join(os.getcwd(), f"{model_name}.fmu")))
+        
         # Compile the FMU if needed
         if not os.path.exists(fmu_file_path) or force_recompile:
-            omc = OMCSessionZMQ()
-            # Change working directory to the specified path
-            omc.sendExpression(f'cd("{os.getcwd()}")')
-            # Load Modelica files from the specified path. Ensure right format.
+            # CRITICAL: Clean up stale .fmutmp directories that cause buildModelFMU to hang
+            print("\n🧹 Cleaning up stale build directories...")
+            for stale_dir in glob.glob("*.fmutmp"):
+                try:
+                    shutil.rmtree(stale_dir)
+                    print(f"   Removed: {stale_dir}")
+                except Exception as e:
+                    raise Exception(f"Cannot remove {stale_dir}: {e}. Please remove manually.")
+            
+            # Ensure modelica files are in the right format
             modelica_files = [str(Path(path)) for path in modelica_files]
-            load_modelica_files(omc, modelica_files=modelica_files)
-            # Build FMU in the specified path
-            build_model_fmu(omc, model, enable_directional_derivatives=enable_directional_derivatives)
+            
+            # Build FMU using command-line omc (ZMQ interface hangs with buildModelFMU)
+            mos_script = tempfile.NamedTemporaryFile(mode='w', suffix='.mos', delete=False, dir=os.getcwd())
+            try:
+                # Write compilation script
+                mos_script.write(f'cd("{os.getcwd()}");\n')
+                
+                # Load Modelica packages
+                for mf in modelica_files:
+                    mos_script.write(f'print("Loading {os.path.basename(mf)}...\\n");\n')
+                    mos_script.write(f'loadFile("{mf}");\n')
+                
+                mos_script.write('print("Loaded: " + String(getClassNames()) + "\\n");\n')
+                mos_script.write('setCommandLineOptions("--fmuCMakeBuild=false");\n')
+                
+                if not enable_directional_derivatives:
+                    mos_script.write('setDebugFlags("disableDirectionalDerivatives");\n')
+                
+                # Build FMU
+                mos_script.write('print("Building FMU...\\n");\n')
+                mos_script.write(f'result := buildModelFMU({model}, version="2.0", fmuType="me", platforms={{"static"}});\n')
+                mos_script.write('print("Result: " + result + "\\n");\n')
+                mos_script.write('print("Messages: " + getErrorString() + "\\n");\n')
+                mos_script.close()
+                
+                print(f"🔨 Compiling FMU (time varies by model complexity)...")
+                start = time.time()
+                
+                # Run omc without strict timeout (compilation time varies by model)
+                result = subprocess.run(
+                    ['omc', mos_script.name],
+                    cwd=os.getcwd(),
+                    capture_output=True,
+                    text=True,
+                    timeout=None  # No timeout - let compilation finish
+                )
+                elapsed = time.time() - start
+                
+                # Show output
+                if result.stdout:
+                    for line in result.stdout.split('\n'):
+                        if line.strip() and line.strip() not in ['true', '""', '']:
+                            print(f"   {line}")
+                
+                if result.stderr:
+                    print("   STDERR:")
+                    for line in result.stderr.split('\n'):
+                        if line.strip():
+                            print(f"     {line}")
+                
+                # Verify FMU was created
+                if not os.path.exists(fmu_file_path):
+                    raise Exception(f'FMU compilation failed - file not found: {fmu_file_path}')
+                
+                print(f"✅ FMU compiled successfully in {elapsed:.1f}s")
+                
+            except subprocess.TimeoutExpired:
+                raise Exception(f'FMU compilation timed out. This should not happen with timeout=None.')
+            finally:
+                try:
+                    os.unlink(mos_script.name)
+                except:
+                    pass
 
         # Parse FMU to dae object
         self.dae = ca.DaeBuilder("model", fmu_file_path, {"debug": False})
