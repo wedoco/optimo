@@ -8,8 +8,37 @@ import shutil
 import subprocess
 import tempfile
 import time
+from dataclasses import dataclass
 
 from wedoco_optimo.helpers import explore_dae, get_dae_results
+
+
+@dataclass(frozen=True)
+class TerminalConstraint:
+    """Bound on a weighted sum of states at the end of the horizon.
+
+    The constrained quantity is sum(weight * state(tf)) over `weights`, for
+    example {"tan.vol[1].T": 0.5, "tan.vol[2].T": 0.5} for the mean of two
+    states. Use -inf or inf for an open side.
+
+    With `penalty=None` the bound is hard. With a penalty, the bound is soft:
+    each unit of violation adds `penalty` to the objective. A soft bound keeps
+    the problem feasible when the bound cannot be reached.
+    """
+    weights: dict
+    lower: float
+    upper: float
+    penalty: float | None
+
+
+@dataclass(frozen=True)
+class SolveSummary:
+    """Outcome of the last call to `OptimoModel.optimize`."""
+    converged: bool
+    return_status: str
+    iterations: int
+    objective: float
+
 
 class OptimoModel:
 
@@ -348,7 +377,8 @@ class OptimoModel:
                             constraints: dict=None,
                             objective_terms: list=None, 
                             ipopt_options: dict=None,
-                            prescribed_inputs: dict=None):
+                            prescribed_inputs: dict=None,
+                            terminal_constraints: list[TerminalConstraint]=None):
         
         # Assign objective terms 
         self.objective_terms = objective_terms if objective_terms is not None else []
@@ -386,10 +416,43 @@ class OptimoModel:
             for constrained_var in constraints.keys():
                 self.ocp.subject_to(constraints[constrained_var][0] <= (self.dae.var(constrained_var) <= constraints[constrained_var][1]), scale=self.dae.nominal(constrained_var))
 
+        # Set terminal constraints
+        for terminal_constraint in terminal_constraints or []:
+            self._add_terminal_constraint(terminal_constraint)
+
         # Set prescribed inputs
         if prescribed_inputs:
             for prescribed_input in prescribed_inputs.keys():
                 self.ocp.set_value(self.dae.var(prescribed_input), prescribed_inputs[prescribed_input])
+
+    def _add_terminal_constraint(self, terminal_constraint: TerminalConstraint):
+        not_states = [name for name in terminal_constraint.weights if name not in self.dae.x()]
+        if not_states:
+            raise ValueError(f"Terminal constraints only apply to states; not states: {not_states}")
+
+        final_value = sum(weight * self.ocp.at_tf(self.dae.var(name))
+                          for name, weight in terminal_constraint.weights.items())
+
+        if terminal_constraint.penalty is None:
+            if terminal_constraint.lower > -np.inf:
+                self.ocp.subject_to(final_value >= terminal_constraint.lower)
+            if terminal_constraint.upper < np.inf:
+                self.ocp.subject_to(final_value <= terminal_constraint.upper)
+            return
+
+        # Soft bound: a non-negative slack per side, paid for in the objective.
+        if terminal_constraint.lower > -np.inf:
+            shortfall = self.ocp.variable()
+            self.ocp.set_initial(shortfall, 0)
+            self.ocp.subject_to(shortfall >= 0)
+            self.ocp.subject_to(final_value + shortfall >= terminal_constraint.lower)
+            self.ocp.add_objective(terminal_constraint.penalty * shortfall)
+        if terminal_constraint.upper < np.inf:
+            excess = self.ocp.variable()
+            self.ocp.set_initial(excess, 0)
+            self.ocp.subject_to(excess >= 0)
+            self.ocp.subject_to(final_value - excess <= terminal_constraint.upper)
+            self.ocp.add_objective(terminal_constraint.penalty * excess)
 
     def optimize(self, calculate_objective_terms_integrals: bool=True):
 
@@ -399,6 +462,13 @@ class OptimoModel:
         except Exception as e:
             print(f"Optimization did not converge: {e}")
             sol = self.ocp.non_converged_solution
+
+        # Keep the solver outcome so callers can compare runs (e.g. multi-start)
+        stats = sol.stats
+        self.last_solve = SolveSummary(converged=bool(stats["success"]),
+                                       return_status=stats["return_status"],
+                                       iterations=int(stats["iter_count"]),
+                                       objective=float(sol.value(self.ocp.objective)))
 
         # Extract the results
         t_ocp = sol.sample(self.dae.var(self.dae.u()[0]), grid="control")[0].T

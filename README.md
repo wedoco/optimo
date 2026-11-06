@@ -52,3 +52,22 @@ When plotting these results (see [full example](examples/vdp.py)) we obtain the 
 
 ### Optimization results
 ![Optimization Results](assets/vdp_ocp.png)
+### Terminal constraints and solver outcome
+
+`define_optimization` accepts `terminal_constraints`: bounds on a weighted sum of states at the end of the horizon.
+A constraint is hard when `penalty` is `None`. Otherwise it is soft, and each unit of violation adds `penalty` to the objective, which keeps the problem feasible when the bound cannot be reached.
+
+```Python
+import math
+from wedoco_optimo.model import TerminalConstraint
+
+# Mean of x1 and x2 must end at or above 0.4; violations cost 100 per unit.
+end_state = TerminalConstraint({"x1": 0.5, "x2": 0.5}, 0.4, math.inf, 100.0)
+mo.define_optimization(constraints={"u":(-1, 0.75)},
+                       objective_terms=["objectiveIntegrand"],
+                       terminal_constraints=[end_state])
+res_ocp_df = mo.optimize()
+
+# Outcome of the last solve: converged, return_status, iterations, objective
+print(mo.last_solve)
+```
